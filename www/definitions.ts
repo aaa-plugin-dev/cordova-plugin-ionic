@@ -12,8 +12,11 @@ export interface IAvailableUpdate {
 }
 
 export interface ISavedPreferences extends ICurrentConfig {
+  currentVersionForAppId?: string;
   availableUpdate?: IAvailableUpdate;
   updates: { [versionId: string]: IAvailableUpdate };
+  switchToReference: boolean;
+  bundlePath?: string;
 }
 
 export interface UpdateInfo {
@@ -31,3 +34,12 @@ export interface FetchManifestResp {
   manifestJson: ManifestFileEntry[];
   fileBaseUrl: string;
 }
+
+export interface IDeviceDetails {
+  binary_version: string;
+  device_id?: string;
+  platform: string;
+  platform_version: string;
+  snapshot?: string;
+}
+

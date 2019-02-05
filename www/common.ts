@@ -1,4 +1,5 @@
 /// <reference types="cordova" />
+/// <reference types="cordova-plugin-file" />
 
 import {
   CallbackFunction,
@@ -10,6 +11,7 @@ import {
   ISnapshotInfo,
   ISyncOptions,
 } from './IonicCordova';
+import { CancelToken } from './tokens';
 
 declare const cordova: Cordova;
 
@@ -17,9 +19,13 @@ const channel = cordova.require('cordova/channel');
 channel.createSticky('onIonicProReady');
 channel.waitForInitialization('onIonicProReady');
 
+declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
-declare const WEBVIEW_SERVER_URL: string;
 declare const Capacitor: any;
+declare const window: any;
+declare const CryptoJS: any;
+
+const ReferenceAppId = '5fc6b2fe';
 
 enum UpdateMethod {
   BACKGROUND = 'background',
@@ -34,7 +40,9 @@ enum UpdateState {
 }
 
 import {
-  FetchManifestResp, IAvailableUpdate,
+  FetchManifestResp,
+  IAvailableUpdate,
+  IDeviceDetails,
   ISavedPreferences,
   ManifestFileEntry,
 } from './definitions';
@@ -43,18 +51,17 @@ import {
   isPluginConfig
 } from './guards';
 
-
 class Path {
-    static join(...paths: string[]): string {
-        let fullPath: string = paths.shift() || '';
-        for (const path of paths) {
-            if (fullPath && fullPath.slice(-1) !== '/') {
-                fullPath += '/';
-            }
-            fullPath = path.slice(0, 1) !== '/' ? fullPath + path : fullPath + path.slice(1);
-        }
-        return fullPath;
+  static join(...paths: string[]): string {
+    let fullPath: string = paths.shift() || '';
+    for (const path of paths) {
+      if (fullPath && fullPath.slice(-1) !== '/') {
+        fullPath += '/';
+      }
+      fullPath = path.slice(0, 1) !== '/' ? fullPath + path : fullPath + path.slice(1);
     }
+    return fullPath;
+  }
 }
 
 /**
@@ -72,17 +79,127 @@ class IonicDeployImpl {
   private MANIFEST_FILE = 'pro-manifest.json';
   public PLUGIN_VERSION = '5.4.7';
 
+  private coreFiles = [
+    /index\.html/,
+    /runtime\.(\w)*\.js/,
+    /polyfills-(\w)*\.(\w)*\.js/,
+    /polyfills\.(\w)*\.js/,
+    /cordova\.(\w)*\.js/,
+    /main\.(\w)*\.js/,
+  ];
+
+  private integrityCheckTimeout: any;
+  private integrityCheckForceValid = false;
+
   constructor(appInfo: IAppInfo, preferences: ISavedPreferences) {
     this.appInfo = appInfo;
     this._savedPreferences = preferences;
   }
 
+  isCoreFile(file: ManifestFileEntry): boolean {
+    return this.coreFiles.some((coreFile) => {
+      const regxp = new RegExp(coreFile);
+      if (regxp.test(file.href)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
+  async checkCoreIntegrity(): Promise<boolean> {
+    if (this._savedPreferences.currentVersionId) {
+      const manifest = await this.getSnapshotManifest(<string>this._savedPreferences.currentVersionId);
+      const integrityChecks: ManifestFileEntry[] = [];
+
+      manifest.some((file) => {
+        if (integrityChecks.length >= this.coreFiles.length) {
+          return true;
+        }
+
+        this.coreFiles.some((coreFile) => {
+          if (integrityChecks.length >= this.coreFiles.length) {
+            return true;
+          }
+
+          const regxp = new RegExp(coreFile);
+          if (regxp.test(file.href)) {
+            integrityChecks.push(file);
+          }
+
+          return false;
+        });
+
+        return false;
+      });
+
+      try {
+        await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
+      } catch (err) {
+        this.sendEvent('onIntegrityCheckFailed', {
+          type: 'coreIntegrity'
+        });
+        throw err;
+      }
+
+      return true;
+    }
+
+    return true;
+  }
+
+  async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<any> {
+    // Can't verify the size of the pro-manifest
+    if (file.size === 0) {
+      console.log('Deploy => checkFileIntegrity => no manifest file size, can\'t check');
+      return true;
+    }
+
+    const fileSize = (await this._fileManager.getFileEntryFile(this.getSnapshotCacheDirPath(versionId), file.href)).size;
+
+    const fileSizesMatch = fileSize === file.size;
+    if (!fileSizesMatch) {
+      this.sendEvent('onIntegrityCheckFailed', {
+        type: 'integrity',
+        file: file.href
+      });
+      throw new Error('File size integrity does not match.');
+    }
+
+    if (fileSizesMatch && this.isCoreFile(file)) {
+      const fullPath = Path.join(this.getSnapshotCacheDirPath(versionId), file.href);
+      const contents = await this._fileManager.getFile(fullPath);
+      const expectedHash = file.integrity.split(' ')[0] || '';
+      const contentsWords = CryptoJS.enc.Utf8.parse(contents);
+      const contentsHash = CryptoJS.SHA256(contentsWords);
+      const base64 = CryptoJS.enc.Base64.stringify(contentsHash);
+      const formattedHash = `sha256-${base64}`;
+      const hashesMatch = formattedHash === expectedHash;
+
+      if (!hashesMatch) {
+        console.log('Deploy => Core file integrity hash does not match.', file, contents, contentsHash);
+      }
+    }
+  }
+
   async _handleInitialPreferenceState() {
-    // make sure we're not going to redirect to a stale version
-    await this.cleanCurrentVersionIfStale();
+    // 6 seconds after startup, check core file integrity
+    // this timeout is cleared if 'configure' is called (because clearly file integrity is fine if configure was called)
+    this.integrityCheckTimeout = setTimeout(() => {
+      console.log('Deploy => CoreFileIntegrityCheck - Starting');
+      this.checkCoreIntegrity()
+        .then(() => console.log('Deploy => CoreFileIntegrityCheck - Success')) // do nothing, integrity is fine... )
+        .catch((err) => {
+          console.log('Deploy => CoreFileIntegrityCheck - Failed', err);
+          if (!this.integrityCheckForceValid) {
+            this.sendEvent('onCoreFileIntegrityCheckFailed', {});
+          }
+        });
+    }, 6000);
+
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
-      console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
+      console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
       this.reloadApp();
       return;
     }
@@ -93,16 +210,17 @@ class IonicDeployImpl {
         // NOTE: call sync with background as override to avoid sync
         // reloading the app and manually reload always once sync has
         // set the correct currentVersionId
-        console.log('calling _sync');
+        console.log('Deploy => calling _sync');
         try {
-          await this.sync({updateMethod: UpdateMethod.BACKGROUND});
+          const cancelToken = new CancelToken();
+          await this.sync({updateMethod: UpdateMethod.BACKGROUND}, cancelToken);
         } catch (e) {
-          console.warn(e);
-          console.warn('Sync failed. Defaulting to last available version.');
+          console.warn(`Deploy => ${e}`);
+          console.warn('Deploy => Sync failed. Defaulting to last available version.');
         }
-        console.log('calling _reload');
+        console.log('Deploy => calling _reload');
         await this.reloadApp();
-        console.log('done _reloading');
+        console.log('Deploy => done _reloading');
         break;
       case UpdateMethod.NONE:
         this.reloadApp();
@@ -111,20 +229,54 @@ class IonicDeployImpl {
         // NOTE: default anything that doesn't explicitly match to background updates
         await this.reloadApp();
         try {
-            this.sync({updateMethod: UpdateMethod.BACKGROUND});
+          const cancelToken = new CancelToken();
+          this.sync({updateMethod: UpdateMethod.BACKGROUND}, cancelToken);
         } catch (e) {
-          console.warn(e);
-          console.warn('Background sync failed. Unable to check for new updates.');
+          console.warn(`Deploy => ${e}`);
+          console.warn('Deploy => Background sync failed. Unable to check for new updates.');
         }
         return;
     }
   }
 
-  getSnapshotCacheDir(versionId: string): string {
-    return new URL(Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId)).pathname;
+  async resetToBundle(): Promise<boolean> {
+    const customPrefs = {
+      appId: ReferenceAppId
+    };
+    this.configure(customPrefs);
+
+    const prefs = this._savedPreferences;
+    delete prefs.availableUpdate;
+    delete prefs.currentVersionId;
+    delete prefs.currentVersionForAppId;
+    prefs.updates = {};
+    await this._savePrefs(prefs);
+
+    if (this.appInfo.platform === 'android') {
+      Ionic.WebView.setServerBasePath('');
+      Ionic.WebView.persistServerBasePath();
+
+      cordova.exec(
+        () => { console.log('Deploy => App restart success'); },
+        () => { console.log('Deploy => App restart fail'); },
+        'IonicCordovaCommon', 'restart');
+    } else if (this.appInfo.platform === 'ios') {
+        Ionic.WebView.setServerBasePath(prefs.bundlePath);
+        Ionic.WebView.persistServerBasePath();
+    }
+
+    return true;
   }
 
-  getBundledAppDir(): string {
+  getSnapshotCacheDirPath(versionId: string): string {
+    return Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId);
+  }
+
+  getSnapshotCacheDir(versionId: string): string {
+    return new URL(this.getSnapshotCacheDirPath(versionId)).pathname;
+  }
+
+  getBundledAppDir(appId?: string): string {
     let folder = 'www';
     if (typeof (Capacitor) !== 'undefined') {
       folder = 'public';
@@ -137,7 +289,7 @@ class IonicDeployImpl {
       try {
         cordova.exec(async (savedPrefs: ISavedPreferences) => {
           resolve(savedPrefs);
-        }, reject, 'IonicCordovaCommon', 'setPreferences', [prefs]);
+          }, reject, 'IonicCordovaCommon', 'setPreferences', [prefs]);
       } catch (e) {
         reject(e.message);
       }
@@ -145,6 +297,9 @@ class IonicDeployImpl {
   }
 
   async configure(config: IDeployConfig) {
+    clearTimeout(this.integrityCheckTimeout);
+    this.integrityCheckForceValid = true;
+
     if (!isPluginConfig(config)) {
       throw new Error('Invalid Config Object');
     }
@@ -162,140 +317,256 @@ class IonicDeployImpl {
     }
     const prefs = this._savedPreferences;
     const appInfo = this.appInfo;
-    const endpoint = `${prefs.host}/apps/${prefs.appId}/channels/check-device`;
 
-    const device_details = {
-      binary_version: prefs.binaryVersionName,
-      device_id: appInfo.device || null,
-      platform: appInfo.platform,
-      platform_version: appInfo.platformVersion,
-      snapshot: prefs.currentVersionId,
-      build: prefs.currentBuildId
-    };
+    // check if apoplicaiton switch to reference app
+    // if so copy bundle file over
+    // skip download
+    // reloadApp()
+    prefs.switchToReference =
+      prefs.currentVersionId !== undefined &&
+      prefs.currentVersionForAppId !== prefs.appId &&
+      prefs.appId === ReferenceAppId;
 
-    const body = {
-      channel_name: prefs.channel,
-      app_id: prefs.appId,
-      device: device_details,
-      plugin_version: this.PLUGIN_VERSION,
-      manifest: true
-    };
+    console.log('Deploy => checkForUpdate: ' + JSON.stringify(prefs));
 
-    const timeout = new Promise( (resolve, reject) => {
-      setTimeout(reject, 5000, 'Request timed out. The device maybe offline.');
-    });
-    const request = fetch(endpoint, {
-      method: 'POST',
-      headers: new Headers({
-        'Content-Type': 'application/json'
-      }),
-      body: JSON.stringify(body)
-    });
+    if (prefs.switchToReference) {
+      delete prefs.availableUpdate;
+      prefs.currentVersionId = 'bundle';
+      prefs.currentVersionForAppId = ReferenceAppId;
+      prefs.updates['bundle'] = <IAvailableUpdate>{
+        binaryVersionCode: prefs.binaryVersionCode,
+        binaryVersionName: prefs.binaryVersionName,
+        channel: prefs.channel,
+        state: 'ready',
+        lastUsed: '',
+        url: '',
+        versionId: 'bundle'
+      };
+      await this._savePrefs(prefs);
 
-    const resp = await (Promise.race([timeout, request]) as Promise<Response>);
+      return <CheckForUpdateResponse>{
+        available: true,
+        compatible: false,
+        partial: false
+      };
+    } else {
+      const endpoint = `${prefs.host}/apps/${prefs.appId}/channels/check-device`;
 
-    let jsonResp;
-    if (resp.status < 500) {
-      jsonResp = await resp.json();
-    }
-    if (resp.ok) {
-      const checkForUpdateResp: CheckForUpdateResponse = jsonResp.data;
-      if (checkForUpdateResp.available && checkForUpdateResp.url && checkForUpdateResp.snapshot && checkForUpdateResp.build) {
-        prefs.availableUpdate = {
-          binaryVersionCode: prefs.binaryVersionCode,
-          binaryVersionName: prefs.binaryVersionName,
-          channel: prefs.channel,
-          state: UpdateState.Available,
-          lastUsed: new Date().toISOString(),
-          url: checkForUpdateResp.url,
-          versionId: checkForUpdateResp.snapshot,
-          buildId: checkForUpdateResp.build
-        };
-        await this._savePrefs(prefs);
+      const device_details = <IDeviceDetails>{
+        binary_version: prefs.binaryVersionName,
+        device_id: appInfo.device || null,
+        platform: appInfo.platform,
+        platform_version: appInfo.platformVersion
+      };
+
+      if (prefs.currentVersionId && prefs.currentVersionId !== 'bundle') {
+        device_details.snapshot = prefs.currentVersionId;
       }
-      return checkForUpdateResp;
-    }
 
-    throw new Error(`Error Status ${resp.status}: ${jsonResp ? jsonResp.error.message : await resp.text()}`);
+      const body = {
+        channel_name: prefs.channel,
+        app_id: prefs.appId,
+        device: device_details,
+        plugin_version: this.PLUGIN_VERSION,
+        manifest: true
+      };
+
+      const timeout = new Promise( (resolve, reject) => {
+        setTimeout(reject, 15000, 'Request timed out. The device maybe offline.');
+      });
+      const request = fetch(endpoint, {
+        method: 'POST',
+        headers: new Headers({
+          'Content-Type': 'application/json'
+        }),
+        body: JSON.stringify(body)
+      });
+
+      const resp = await (Promise.race([timeout, request]) as Promise<Response>);
+
+      let jsonResp;
+      if (resp.status < 500) {
+        jsonResp = await resp.json();
+      }
+      if (resp.ok) {
+        const checkDeviceResp: CheckForUpdateResponse = jsonResp.data;
+        if (checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot) {
+          prefs.availableUpdate = {
+            binaryVersionCode: prefs.binaryVersionCode,
+            binaryVersionName: prefs.binaryVersionName,
+            channel: prefs.channel,
+            state: UpdateState.Available,
+            lastUsed: new Date().toISOString(),
+            url: checkDeviceResp.url,
+            versionId: checkDeviceResp.snapshot,
+            buildId: checkDeviceResp.build || '?',
+          };
+          await this._savePrefs(prefs);
+        }
+        return checkDeviceResp;
+      }
+
+      throw new Error(`Error Status ${resp.status}: ${jsonResp ? jsonResp.error.message : await resp.text()}`);
+    }
   }
 
-  async downloadUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
+  async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
     const prefs = this._savedPreferences;
-    if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
-      const { fileBaseUrl, manifestJson } = await this._fetchManifest(prefs.availableUpdate.url);
-      const diffedManifest = await this._diffManifests(manifestJson);
-      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId);
-      await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
-      prefs.availableUpdate.state = UpdateState.Pending;
-      await this._savePrefs(prefs);
+    if (prefs.switchToReference) {
+      // it is an application switch, in this case we don't download anything
+      await this._copyBundleToSnapshot();
       return true;
+    } else if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
+      const [{ fileBaseUrl, manifestJson }] = await Promise.all([
+        this._fetchManifest(prefs.availableUpdate.url),
+        this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
+      ]);
+
+      const diffedManifest = await this._diffManifests(
+        manifestJson,
+        prefs.availableUpdate.versionId
+      );
+
+      // Download the files
+      try {
+        await this._downloadFilesFromManifest(cancelToken, fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
+      } catch (err) {
+        console.log('Deploy => CAUGHT ERROR - DOWNLOAD', err);
+        throw err;
+      }
+
+      if (cancelToken.isCancelled()) {
+        console.log('Deploy => Download cancelled, returning');
+        cancelToken.onCancel();
+        return false;
+      } else {
+        prefs.availableUpdate.state = UpdateState.Pending;
+        await this._savePrefs(prefs);
+        return true;
+      }
     }
+    console.log('Deploy => Nothing to download');
     return false;
   }
 
-  private async _downloadFilesFromManifest(baseUrl: string, manifest: ManifestFileEntry[], versionId: string, progress?: CallbackFunction<number>) {
-    console.log('Downloading update...');
+  private async _downloadFilesFromManifest(cancelToken: CancelToken, baseUrl: string, manifest: ManifestFileEntry[], versionId: string, progress?: CallbackFunction<number>) {
     let size = 0, downloaded = 0;
+    const concurrent = 4;
     manifest.forEach(i => {
       size += i.size;
     });
 
+    console.log(`Deploy => Downloading update... ${size} bytes`);
+
     const beforeDownloadTimer = new Timer('downloadTimer');
     const downloadFile = async (file: ManifestFileEntry) => {
+      console.log(`Deploy => Downloading ionic update file: ${file.href} of size: ${file.size}`);
       const base = new URL(baseUrl);
       const newUrl = new URL(file.href, baseUrl);
       newUrl.search = base.search;
       const filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
       await this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath);
-      // Update progress
+
+      // await this.checkFileIntegrity(file, versionId);
+
       downloaded += file.size;
+      const percentProgress = (downloaded / size) * 100;
+      console.log(`Deploy => Finished downloading ${file.href}; progress: ${percentProgress}`);
       if (progress) {
-        progress(Math.floor((downloaded / size) * 100));
+        progress(percentProgress);
+      } else {
+        console.log('Deploy => No progress callback available');
       }
     };
 
-    let downloads = [];
-    let count = 0;
-    console.log(`About to download ${manifest.length} new files for update.`);
-    const maxBatch = 20;
-    let numberBatches = Math.round(manifest.length / maxBatch);
-    if (manifest.length % maxBatch !== 0) {
-      numberBatches = numberBatches + 1;
-    }
+    const downloads: ManifestFileEntry[] = [];
+    console.log(`Deploy => Downloading ${manifest.length} new files...`);
     for (const entry of manifest) {
-      if (downloads.length >= maxBatch) {
-        count++;
-        await Promise.all(downloads);
-        beforeDownloadTimer.diff(`downloaded batch ${count} of ${numberBatches} downloads. Done downloading ${count * maxBatch} of ${manifest.length} files`);
-        downloads = [];
+      downloads.push(entry);
+    }
+
+    await this.asyncPoolDownloads(concurrent, downloads, async (entry: ManifestFileEntry) => {
+      if (cancelToken.isCancelled()) {
+        console.log(`Deploy => Download cancelled for file: ${entry.href}`);
+      } else {
+        const maxTries = 5;
+        let i = 0, success = false, error = '';
+
+        while (!success && i < maxTries && !cancelToken.isCancelled()) {
+          try {
+            await downloadFile(entry);
+            success = true;
+          } catch (err) {
+            i++;
+            error = `${err}`;
+            console.log(`Deploy => ${i} File download error ${entry.href} with error: ${err}`);
+          }
+        }
+
+        if (!success && !cancelToken.isCancelled()) {
+          throw new Error(error);
+        }
       }
-      downloads.push(downloadFile(entry));
+    });
+
+    if (cancelToken.isCancelled()) {
+      console.log(`Deploy => Download cancelled`);
+    } else {
+      console.log(`Deploy => Files downloaded.`);
     }
-    if (downloads.length) {
-      count++;
-      await Promise.all(downloads);
-      beforeDownloadTimer.diff(`downloaded batch ${count} of ${numberBatches} downloads. Done downloading all ${manifest.length} files`);
-    }
+
     beforeDownloadTimer.end(`Downloaded ${manifest.length} files`);
   }
 
+  async asyncPoolDownloads(poolLimit: number, array: any[], iteratorFn: Function) {
+    const realPoolLimit = poolLimit >= array.length ? array.length : poolLimit;
+    const ret = [];
+    const executing: any[] = [];
+    for (const item of array) {
+      const p = Promise.resolve().then(() => iteratorFn(item, array));
+      ret.push(p);
+      const e: any = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= realPoolLimit) {
+        await Promise.race(executing);
+      }
+    }
+    return Promise.all(ret);
+  }
+
   private async _fetchManifest(url: string): Promise<FetchManifestResp> {
+    console.log(`_fetchManifest: ${url}`);
     const resp = await fetch(url, {
       method: 'GET',
       redirect: 'follow',
     });
+
+    const responseBody = await resp.json();
+
     return {
       fileBaseUrl: resp.url,
-      manifestJson: await resp.json()
+      manifestJson: responseBody
     };
   }
 
-  private async _diffManifests(newManifest: ManifestFileEntry[]) {
+  private async _diffManifests(newManifest: ManifestFileEntry[], versionId: string) {
+    let snapshotManifest: any[] = [];
     try {
-      const manifestResp = await fetch(`${WEBVIEW_SERVER_URL}/${this.MANIFEST_FILE}`);
-      const bundledManifest: ManifestFileEntry[] = await manifestResp.json();
-      const bundleManifestStrings = bundledManifest.map(entry => JSON.stringify(entry));
-      return newManifest.filter(entry => bundleManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      snapshotManifest = await this.getSnapshotManifest(versionId);
+    } catch (err) {
+      snapshotManifest = [];
+    }
+
+    try {
+      const snapManifestStrings = snapshotManifest.map(entry => JSON.stringify(entry));
+      const differences = newManifest.filter(entry => snapManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+
+      // Append pro-manifest.json if there are differences
+      if (differences.length > 0) {
+        differences.push({ href: 'pro-manifest.json', integrity: 'void', size: 0 });
+      }
+
+      return differences;
     } catch (e) {
       return newManifest;
     }
@@ -303,44 +574,62 @@ class IonicDeployImpl {
 
   private async prepareUpdateDirectory(versionId: string) {
     await this._cleanSnapshotDir(versionId);
-    console.log('Cleaned version directory');
+    console.log('Deploy => Cleaned version directory');
 
     await this._copyBaseAppDir(versionId);
-    console.log('Copied base app resources');
+    console.log('Deploy => Copied base app resources');
   }
 
-  async extractUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
-    const prefs = this._savedPreferences;
-    if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
+  async extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
+    if (cancelToken.isCancelled()) {
       return false;
-    }
+    } else {
+      const prefs = this._savedPreferences;
 
-    if (progress) {
-      progress(100);
-    }
+      if (prefs.switchToReference) {
+        return true;
+      }
 
-    prefs.availableUpdate.state = UpdateState.Ready;
-    prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
-    await this._savePrefs(prefs);
-    return true;
+      if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
+        return false;
+      }
+
+      if (progress) {
+        progress(100);
+      }
+
+      prefs.availableUpdate.state = UpdateState.Ready;
+      prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
+      await this._savePrefs(prefs);
+      return true;
+    }
   }
 
   async reloadApp(): Promise<boolean> {
     const prefs = this._savedPreferences;
 
+    if (prefs.switchToReference) {
+      prefs.switchToReference = false;
+      await this._savePrefs(prefs);
+    }
+
     // Save the current update if it's ready
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready) {
       prefs.currentVersionId = prefs.availableUpdate.versionId;
-      prefs.currentBuildId = prefs.availableUpdate.buildId;
+      prefs.currentVersionForAppId = prefs.appId;
       delete prefs.availableUpdate;
       await this._savePrefs(prefs);
     }
+
+    // Clean current version if its stale
+    await this.cleanCurrentVersionIfStale();
 
     // Is there a non-binary version deployed?
     if (prefs.currentVersionId) {
       // Are we already running the deployed version?
       if (await this._isRunningVersion(prefs.currentVersionId)) {
-        console.log(`Already running version ${prefs.currentVersionId}`);
+        console.log(`Deploy => Already running version ${prefs.currentVersionId}`);
+        prefs.currentVersionForAppId = prefs.appId;
         await this._savePrefs(prefs);
         channel.onIonicProReady.fire();
         Ionic.WebView.persistServerBasePath();
@@ -349,14 +638,15 @@ class IonicDeployImpl {
       }
 
       // Is the current version on the device?
-      if (!(prefs.currentVersionId in prefs.updates)) {
-        console.error(`Missing version ${prefs.currentVersionId}`);
+      if (!(prefs.currentVersionId in prefs.updates) && prefs.currentVersionId !== 'bundle') {
+        console.error(`Deploy => Missing version ${prefs.currentVersionId}`);
         channel.onIonicProReady.fire();
         return false;
       }
 
       // Reload the webview
       const newLocation = this.getSnapshotCacheDir(prefs.currentVersionId);
+      console.log('Deploy => setServerBasePath: ' + newLocation);
       Ionic.WebView.setServerBasePath(newLocation);
       return true;
     }
@@ -369,25 +659,94 @@ class IonicDeployImpl {
   private isCurrentVersion(update: IAvailableUpdate) {
     const currentVersionCode = this._savedPreferences.binaryVersionCode;
     const currentVersionName = this._savedPreferences.binaryVersionName;
-    console.log(`Current: versionCode: ${currentVersionCode} versionName: ${currentVersionName}`);
-    console.log(`update: versionCode: ${update.binaryVersionCode} versionName: ${update.binaryVersionName}`);
+    console.log(`Deploy => Current: versionCode: ${currentVersionCode} versionName: ${currentVersionName}`);
+    console.log(`Deploy => update: versionCode: ${update.binaryVersionCode} versionName: ${update.binaryVersionName}`);
     return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
   }
 
-  private async cleanCurrentVersionIfStale() {
+  public async cleanCurrentVersionIfStale() {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
       if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
         console.log(
-          `Update ${prefs.currentVersionId} was built for different binary version removing update from device` +
+          `Deploy => Update ${prefs.currentVersionId} was built for different binary version, updating cordova assets...` +
           `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
           `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
         );
-        const versionId = prefs.currentVersionId;
-        // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
-        delete prefs.currentVersionId;
-        await this.deleteVersionById(versionId);
+
+        console.log('Deploy => Ionic: Cleaning stale assets...');
+
+        // We need to ensure some plugins and other files are copied from bundled to snapshot
+        // this ensure plugins js are not out of date.
+        const snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
+        const bundledAppDir = this.getBundledAppDir();
+
+        try {
+          // Copy directories over (they are removed first)
+          await this._fileManager.copyTo({
+            source: {
+              path: Path.join(bundledAppDir, 'plugins'),
+              directory: 'APPLICATION',
+            },
+            target: Path.join(snapshotDirectory, 'plugins')
+          });
+          await this._fileManager.copyTo({
+            source: {
+              path: Path.join(bundledAppDir, 'cordova-js-src'),
+              directory: 'APPLICATION',
+            },
+            target: Path.join(snapshotDirectory, 'cordova-js-src')
+          });
+          await this._fileManager.copyTo({
+            source: {
+              path: Path.join(bundledAppDir, 'task'),
+              directory: 'APPLICATION',
+            },
+            target: Path.join(snapshotDirectory, 'task')
+          });
+
+          // Copy files over
+          console.log('Deploy => Ionic: Copying cordova files...');
+          await this._fileManager.remove(Path.join(snapshotDirectory, 'cordova.js'));
+          await this._fileManager.remove(Path.join(snapshotDirectory, 'cordova_plugins.js'));
+          await this._fileManager.copyTo({
+            source: {
+              path: Path.join(bundledAppDir, 'cordova.js'),
+              directory: 'APPLICATION',
+            },
+            target: snapshotDirectory
+          });
+          await this._fileManager.copyTo({
+            source: {
+              path: Path.join(bundledAppDir, 'cordova_plugins.js'),
+              directory: 'APPLICATION',
+            },
+            target: snapshotDirectory
+          });
+
+          // IOS only
+          if (this.appInfo.platform === 'ios') {
+            console.log('Deploy => Ionic: Copying ios specific files...');
+            await this._fileManager.remove(Path.join(snapshotDirectory, 'wk-plugin.js'));
+            await this._fileManager.copyTo({
+              source: {
+                path: Path.join(bundledAppDir, 'wk-plugin.js'),
+                directory: 'APPLICATION',
+              },
+              target: snapshotDirectory
+            });
+          }
+        } catch (err) {
+          console.error(`Deploy => Error: ${err}`);
+        }
+
+        // Switch the updates binary version name
+        prefs.updates[prefs.currentVersionId].binaryVersionName = prefs.binaryVersionName;
+        prefs.updates[prefs.currentVersionId].binaryVersionCode = prefs.binaryVersionCode;
+
+        // Save prefs to stop this happening again
+        return await this._savePrefs(prefs);
       }
     }
   }
@@ -402,7 +761,7 @@ class IonicDeployImpl {
       try {
         Ionic.WebView.getServerBasePath(resolve);
       } catch (e) {
-       reject(e);
+        reject(e);
       }
     });
   }
@@ -414,9 +773,20 @@ class IonicDeployImpl {
       await this._fileManager.remove(snapshotDir);
       timer.end();
     } catch (e) {
-      console.log('No directory found for snapshot no need to delete');
+      console.log('Deploy => No directory found for snapshot no need to delete');
       timer.end();
     }
+  }
+
+  private async _copyBundleToSnapshot() {
+      await this._cleanSnapshotDir('bundle');
+      await this._fileManager.copyTo({
+        source: {
+          path: this.getBundledAppDir(),
+          directory: 'APPLICATION',
+        },
+        target: this.getSnapshotCacheDir('bundle'),
+      });
   }
 
   private async _copyBaseAppDir(versionId: string) {
@@ -460,6 +830,35 @@ class IonicDeployImpl {
     };
   }
 
+  async getSnapshotManifest(versionId: string): Promise<ManifestFileEntry[]> {
+    return this.parseManifestFile(this.getSnapshotCacheDir(versionId));
+  }
+
+  async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
+    let fileContents = '[]';
+
+    try {
+      fileContents = await this._fileManager.getFile(
+        Path.join(dir, this.MANIFEST_FILE)
+      );
+    } catch (err) {
+      // do nothing, use fresh
+    }
+
+    try {
+      const manifest = JSON.parse(<string>fileContents);
+      return manifest;
+    } catch (err) {
+      console.error('Deploy => Could not parse JSON:', fileContents);
+    }
+
+    return [];
+  }
+
+  async isDefaultApp(): Promise<boolean> {
+    return Promise.resolve(this._savedPreferences.appId === ReferenceAppId);
+  }
+
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
     return Object.keys(this._savedPreferences.updates).map(k => this._convertToSnapshotInfo(this._savedPreferences.updates[k]));
   }
@@ -470,6 +869,8 @@ class IonicDeployImpl {
     if (prefs.currentVersionId === versionId) {
       throw Error(`Can't delete version with id: ${versionId} as it is the current version.`);
     }
+
+    console.log(`Deploy => Deploy => Deleting ionic snapshot ${versionId}.`);
 
     delete prefs.updates[versionId];
     await this._savePrefs(prefs);
@@ -496,21 +897,8 @@ class IonicDeployImpl {
   private async cleanupVersions() {
     const prefs = this._savedPreferences;
 
-    let updates = this.getStoredUpdates();
-    // First clean stale versions
-    for (const update of updates) {
-      if (!this.isCurrentVersion(update)) {
-        console.log(
-          `Update ${update.versionId} was built for different binary version removing update from device` +
-          `Update binaryVersionName: ${update.binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
-          `Update binaryVersionCode: ${update.binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
-        );
-        await this.deleteVersionById(update.versionId);
-      }
-    }
-
     // clean down to Max Updates stored
-    updates = this.getStoredUpdates();
+    let updates = this.getStoredUpdates();
     updates = updates.sort((a, b) => a.lastUsed.localeCompare(b.lastUsed));
     updates = updates.reverse();
     updates = updates.slice(prefs.maxVersions);
@@ -520,7 +908,7 @@ class IonicDeployImpl {
     }
   }
 
-  async sync(syncOptions: ISyncOptions = {}, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined> {
+  async sync(syncOptions: ISyncOptions = {}, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined> {
     const prefs = this._savedPreferences;
 
     // TODO: Get API override if present?
@@ -534,14 +922,19 @@ class IonicDeployImpl {
 
     if (prefs.availableUpdate) {
       if (prefs.availableUpdate.state === UpdateState.Available) {
-        await this.downloadUpdate(wrappedProgress);
+        await this.downloadUpdate(cancelToken, wrappedProgress);
       }
-      if (prefs.availableUpdate.state === UpdateState.Pending) {
-        // ignore progress from this since it's trivial
-        await this.extractUpdate();
-      }
-      if (prefs.availableUpdate.state === UpdateState.Ready && updateMethod === UpdateMethod.AUTO) {
-        await this.reloadApp();
+      if (!cancelToken.isCancelled()) {
+        cancelToken.onCancel();
+        return;
+      } else {
+        if (prefs.availableUpdate.state === UpdateState.Pending) {
+          // ignore progress from this since it's trivial
+          await this.extractUpdate(cancelToken);
+        }
+        if (prefs.availableUpdate.state === UpdateState.Ready && updateMethod === UpdateMethod.AUTO) {
+          await this.reloadApp();
+        }
       }
     }
 
@@ -557,7 +950,13 @@ class IonicDeployImpl {
         binaryVersionName: prefs.binaryVersionName
       };
     }
+
     return;
+  }
+
+  private sendEvent(eventName: string, data: any) {
+    const event = new CustomEvent(eventName, { detail: data });
+    document.dispatchEvent(event);
   }
 }
 
@@ -579,9 +978,52 @@ class FileManager {
       cordova.exec(resolve, reject, 'IonicCordovaCommon', 'downloadFile', [{url, target: path}]);
     });
   }
+
+  async getDirectory(path: string, createDirectory = true): Promise<DirectoryEntry> {
+    return new Promise<DirectoryEntry>((resolve, reject) => {
+      resolveLocalFileSystemURL(
+        path,
+        entry => entry.isDirectory ? resolve(entry as DirectoryEntry) : reject(),
+        async () => {
+          const components = path.split('/');
+          const child = components.pop() as string;
+          try {
+            const parent = (await this.getDirectory(components.join('/'), createDirectory)) as DirectoryEntry;
+            parent.getDirectory(child, {create: createDirectory}, async entry => {
+              if (entry.fullPath === path) {
+                resolve(entry);
+              } else {
+                resolve(await this.getDirectory(path, createDirectory));
+              }
+            }, reject);
+          } catch (e) {
+            reject(e);
+          }
+        }
+      );
+    });
+  }
+
+  async getFile(fullPath: string): Promise<string> {
+    const normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+    const req = await fetch(normalizedURL);
+    return req.text();
+  }
+
+  async getFileEntry(path: string, fileName: string) {
+    const dirEntry = await this.getDirectory(path, false);
+    return new Promise<FileEntry>((resolve, reject) => {
+      dirEntry.getFile(fileName, {create: false, exclusive: false}, resolve, reject);
+    });
+  }
+
+  async getFileEntryFile(path: string, fileName: string): Promise<File> {
+    const fileEntry = await this.getFileEntry(path, fileName);
+    return new Promise<File>((resolve, reject) => {
+      fileEntry.file(resolve, reject);
+    });
+  }
 }
-
-
 
 class IonicDeploy implements IDeployPluginAPI {
   private parent: IPluginBaseAPI;
@@ -590,6 +1032,7 @@ class IonicDeploy implements IDeployPluginAPI {
   private lastPause = 0;
   private minBackgroundDuration = 10;
   private disabled = false;
+  public supportsPartialNativeUpdates = true;
 
   constructor(parent: IPluginBaseAPI) {
     this.parent = parent;
@@ -610,7 +1053,7 @@ class IonicDeploy implements IDeployPluginAPI {
       if (!this.fetchIsAvailable) {
         disabledMessage = 'Fetch is unavailable so ' + disabledMessage;
       }
-      console.warn(disabledMessage);
+      console.warn(`Deploy => ${disabledMessage}`);
       channel.onIonicProReady.fire();
     } else {
       await delegate._handleInitialPreferenceState();
@@ -668,14 +1111,15 @@ class IonicDeploy implements IDeployPluginAPI {
     return new Promise<ICurrentConfig>(async (resolve, reject) => {
       try {
         cordova.exec(async (prefs: ISavedPreferences) => {
-          if (prefs.availableUpdate) {
-            delete prefs.availableUpdate;
-          }
-          if (prefs.updates) {
-            delete prefs.updates;
-          }
-          resolve(prefs);
-        }, reject, 'IonicCordovaCommon', 'getPreferences');
+            if (prefs.availableUpdate) {
+              delete prefs.availableUpdate;
+            }
+            if (prefs.updates) {
+              delete prefs.updates;
+            }
+            console.log(`Deploy => prefs: ${JSON.stringify(prefs)}`);
+            resolve(prefs);
+          }, reject, 'IonicCordovaCommon', 'getPreferences');
       } catch (e) {
         reject(e.message);
       }
@@ -687,13 +1131,13 @@ class IonicDeploy implements IDeployPluginAPI {
     return true;
   }
 
-  async downloadUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
-    if (!this.disabled) return (await this.delegate).downloadUpdate(progress);
+  async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).downloadUpdate(cancelToken, progress);
     return false;
   }
 
-  async extractUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
-    if (!this.disabled) return (await this.delegate).extractUpdate(progress);
+  async extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).extractUpdate(cancelToken, progress);
     return false;
   }
 
@@ -717,8 +1161,28 @@ class IonicDeploy implements IDeployPluginAPI {
     return false;
   }
 
-  async sync(syncOptions: ISyncOptions = {}, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined> {
-    if (!this.disabled) return (await this.delegate).sync(syncOptions, progress);
+  async resetToBundle(): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).resetToBundle();
+    return false;
+  }
+
+  async showErrorAlert(): Promise<string> {
+    if (this.disabled) {
+      return Promise.resolve('Disbaled');
+    }
+
+    return new Promise<string>((resolve, reject) => {
+      cordova.exec((userAction: string) => {
+        resolve(userAction);
+      },
+      () => {
+        reject('Error happen showing alert');
+      }, 'IonicCordovaCommon', 'showErrorAlert');
+    });
+  }
+
+  async sync(syncOptions: ISyncOptions = {}, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined> {
+    if (!this.disabled) return (await this.delegate).sync(syncOptions, cancelToken, progress);
     return;
   }
 }
@@ -740,7 +1204,7 @@ class IonicCordova implements IPluginBaseAPI {
 
 
   getAppInfo(success: CallbackFunction<IAppInfo>, failure: CallbackFunction<string>) {
-    console.warn('This function has been deprecated in favor of IonicCordova.getAppDetails.');
+    console.warn('Deploy => This function has been deprecated in favor of IonicCordova.getAppDetails.');
     this.getAppDetails().then(
       result => success(result),
       err => {
@@ -764,18 +1228,18 @@ class Timer {
     this.name = name;
     this.startTime = new Date();
     this.lastTime = new Date();
-    console.log(`Starting IonicTimer ${this.name}`);
+    // console.log(`Starting IonicTimer ${this.name}`);
   }
 
   end(extraLog?: string) {
-    console.log(`Finished IonicTimer ${this.name} in ${(new Date().getTime() - this.startTime.getTime()) / 1000} seconds.`);
+    // console.log(`Finished IonicTimer ${this.name} in ${(new Date().getTime() - this.startTime.getTime()) / 1000} seconds.`);
     if (extraLog) {
-      console.log(`IonicTimer extra ${extraLog}`);
+      // console.log(`IonicTimer extra ${extraLog}`);
     }
   }
 
   diff(message?: string) {
-    console.log(`Message: ${message} Diff IonicTimer ${this.name} in ${(new Date().getTime() - this.lastTime.getTime()) / 1000} seconds.`);
+    // console.log(`Message: ${message} Diff IonicTimer ${this.name} in ${(new Date().getTime() - this.lastTime.getTime()) / 1000} seconds.`);
     this.lastTime = new Date();
   }
 }

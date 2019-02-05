@@ -1,0 +1,1 @@
+[{"__symbolic":"module","version":4,"metadata":{"CancelToken":{"__symbolic":"class","members":{"__ctor__":[{"__symbolic":"constructor"}],"cancel":[{"__symbolic":"method"}],"reset":[{"__symbolic":"method"}],"isCancelled":[{"__symbolic":"method"}],"onCancel":[{"__symbolic":"method"}]}}}}]

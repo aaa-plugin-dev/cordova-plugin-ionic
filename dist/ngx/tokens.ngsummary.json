@@ -1,0 +1,1 @@
+{"moduleName":null,"summaries":[{"symbol":{"__symbol":0,"members":[]},"metadata":{"__symbolic":"class","members":{"__ctor__":[{"__symbolic":"constructor"}],"cancel":[{"__symbolic":"method"}],"reset":[{"__symbolic":"method"}],"isCancelled":[{"__symbolic":"method"}],"onCancel":[{"__symbolic":"method"}]}}}],"symbols":[{"__symbol":0,"name":"CancelToken","filePath":"./tokens"}]}

@@ -68,6 +68,10 @@
 
 - (void) downloadFile:(CDVInvokedUrlCommand *)command;
 
+- (void) restart:(CDVInvokedUrlCommand *)command;
+
+- (void) showErrorAlert:(CDVInvokedUrlCommand *)command;
+
 /**
  * Get cordova plugin native congiguration and state information (config.xml stuff)
  *

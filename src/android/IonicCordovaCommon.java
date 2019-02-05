@@ -1,9 +1,13 @@
 package com.ionicframework.common;
 
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.net.Uri;
+
+import androidx.appcompat.R;
+import androidx.appcompat.app.AlertDialog;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.cordova.CordovaWebView;
@@ -105,6 +109,10 @@ public class IonicCordovaCommon extends CordovaPlugin {
         }
       }, args, callbackContext);
 
+    } else if (action.equals("restart")) {
+      this.restart();
+    } else if (action.equals("showErrorAlert")) {
+      this.showErrorAlert(callbackContext);
     } else {
       return false;
     }
@@ -349,6 +357,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
     SharedPreferences prefs = this.cordova.getActivity().getApplicationContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     String prefsString = prefs.getString(this.CUSTOM_PREFS_KEY, null);
     if (prefsString != null) {
+      Log.i(TAG, "Found custom prefs: " + prefsString);
       JSONObject customPrefs = new JSONObject(prefsString);
       return customPrefs;
     }
@@ -415,6 +424,60 @@ public class IonicCordovaCommon extends CordovaPlugin {
       Log.e(TAG, "Unable to get preferences", ex);
       callbackContext.error(ex.toString());
     }
+  }
+
+  public void restart() {
+    cordova.getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+          try {
+              Log.i(TAG, "Warm restarting main activity");
+              cordova.getActivity().recreate();
+          } catch (Exception ex) {
+              Log.e(TAG, "Unable to warm restart main activity: " + ex.getMessage());
+          }
+      }
+    });
+  }
+
+  public void showErrorAlert(CallbackContext callbackContext) {
+    final IonicCordovaCommon instance = this;
+    cordova.getActivity().runOnUiThread(new Runnable() {
+      @Override
+      public void run() {
+        try {
+          instance.showErrorAlert(callbackContext, instance.cordova.getActivity());
+        } catch (Exception ex) {
+          Log.e(TAG, "Error showig alert: " + ex.getMessage());
+        }
+      }
+    });
+  }
+
+  private void showErrorAlert(CallbackContext callbackContext, Activity activity) {
+      AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.Theme_AppCompat_Light_Dialog);
+
+      builder.setTitle("Network not available")
+              .setMessage("Please check your internet connection and/or signal strength and try again or for Roadside Assistence call 800-222-4357")
+              .setCancelable(false)
+              .setPositiveButton("Try Again", (dialog, which) -> {
+                  dialog.dismiss();
+                  callbackContext.success("TryAgain");
+              })
+              .setNeutralButton("Call AAA", (dialog, which) -> {
+                  dialog.dismiss();
+                  Intent callIntent = new Intent(Intent.ACTION_DIAL);
+                  callIntent.setData(Uri.parse("tel:18002224357"));
+                  activity.startActivity(callIntent);
+                  callbackContext.success("CallAAA");
+              })
+              .setNegativeButton("Cancel", (dialog, which) -> {
+                  dialog.dismiss();
+                  callbackContext.success("Cancel");
+              });
+
+      AlertDialog dialog = builder.create();
+      dialog.show();
   }
 
   private JSONObject getNativeConfig() throws JSONException {

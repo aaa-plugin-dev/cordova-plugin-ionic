@@ -6,6 +6,8 @@ import {
   ISnapshotInfo,
   ISyncOptions,
 } from './IonicCordova';
+import { CancelToken } from './tokens';
+
 /**
  * @hidden
  */
@@ -35,14 +37,14 @@ export class DeployClass implements IDeployPluginAPI {
     return deploy.checkForUpdate();
   }
 
-  async downloadUpdate(progress?: CallbackFunction<number>) {
+  async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>) {
     const deploy = await deviceready;
-    return deploy.downloadUpdate(progress);
+    return deploy.downloadUpdate(cancelToken, progress);
   }
 
-  async extractUpdate(progress?: CallbackFunction<number>) {
+  async extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>) {
     const deploy = await deviceready;
-    return deploy.extractUpdate(progress);
+    return deploy.extractUpdate(cancelToken, progress);
   }
 
   async reloadApp() {
@@ -50,9 +52,19 @@ export class DeployClass implements IDeployPluginAPI {
     return deploy.reloadApp();
   }
 
-  async sync(options: ISyncOptions, progress?: CallbackFunction<number>) {
+  async resetToBundle() {
     const deploy = await deviceready;
-    return deploy.sync(options, progress);
+    return deploy.resetToBundle();
+  }
+
+  async showErrorAlert() {
+    const deploy = await deviceready;
+    return deploy.showErrorAlert();
+  }
+
+  async sync(options: ISyncOptions, cancelToken: CancelToken, progress?: CallbackFunction<number>) {
+    const deploy = await deviceready;
+    return deploy.sync(options, cancelToken, progress);
   }
 
   async getCurrentVersion(): Promise<ISnapshotInfo | undefined> {

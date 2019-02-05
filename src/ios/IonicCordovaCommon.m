@@ -87,6 +87,37 @@
     }] resume];
 }
 
+- (void) restart:(CDVInvokedUrlCommand*)command {
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (void) showErrorAlert:(CDVInvokedUrlCommand*)command {
+    UIAlertController *controller = [UIAlertController alertControllerWithTitle:@"Network not available" message:@"Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357" preferredStyle:UIAlertControllerStyleAlert];
+    
+    UIAlertAction *buttonTryAgain = [UIAlertAction actionWithTitle:@"Try Again" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"TryAgain"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+    [controller addAction:buttonTryAgain];
+
+    UIAlertAction *buttonCallAAA = [UIAlertAction actionWithTitle:@"Call AAA" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"tel://800-222-4357"]];
+
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"CallAAA"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+    [controller addAction:buttonCallAAA];
+
+    UIAlertAction *buttonCancel = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
+        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Cancel"];
+        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+    }];
+    [controller addAction:buttonCancel];
+       
+    [self.viewController presentViewController:controller animated:YES completion:nil];
+}
+
 - (void) getAppInfo:(CDVInvokedUrlCommand*)command {
     NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
     NSMutableDictionary *json = [[NSMutableDictionary alloc] init];
@@ -127,6 +158,8 @@
     NSMutableDictionary *savedPrefs = [immutableStoredPrefs mutableCopy];
     NSMutableDictionary *nativeConfig = [self getNativeConfig];
     NSMutableDictionary *customConfig = [self getCustomConfig];
+
+    nativeConfig[@"bundlePath"] = self.baseIndexPath;
 
     if (savedPrefs!= nil) {
         

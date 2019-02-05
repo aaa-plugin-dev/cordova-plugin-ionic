@@ -1,3 +1,5 @@
+import { CancelToken } from './tokens';
+
 declare global {
   interface Window {
     IonicCordova: IPluginBaseAPI;
@@ -46,7 +48,7 @@ export interface DeployPluginAPI {
    *
    * @return  true if the download succeeded
    */
-  downloadUpdate(progress?: CallbackFunction<number>): Promise<boolean>;
+  downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
 
   /**
    * @description Extract a downloaded bundle of updated files.
@@ -57,7 +59,7 @@ export interface DeployPluginAPI {
    *
    * @return  true if the extract succeeded
    */
-  extractUpdate(progress?: CallbackFunction<number>): Promise<boolean>;
+  extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
 
   /**
    * @description Reload the app if a more recent version of the app is available.
@@ -67,6 +69,24 @@ export interface DeployPluginAPI {
    * @return true if the reload succeeded
    */
   reloadApp(): Promise<boolean>;
+
+  /**
+   * @description Reset the app to bundle.
+   *
+   * @since v5.0.0
+   *
+   * @return true if the reset succeeded
+   */
+  resetToBundle(): Promise<boolean>;
+
+  /**
+   * @description Show native error alert in case Angular can't be used
+   *
+   * @since v5.0.0
+   *
+   * @return user action selected
+   */
+  showErrorAlert(): Promise<string>;
 
   /**
    * @description Check for an update, download it, and apply it in one step.
@@ -79,7 +99,7 @@ export interface DeployPluginAPI {
    *
    * @return The info about the currently applied update or undefined if none is applied.
    */
-  sync(syncOptions: ISyncOptions, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined>;
+  sync(syncOptions: ISyncOptions, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined>;
 
   /**
    *
