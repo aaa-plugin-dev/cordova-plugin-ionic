@@ -18,8 +18,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
         while (_) try {
-            if (f = 1, y && (t = y[op[0] & 2 ? "return" : op[0] ? "throw" : "next"]) && !(t = t.call(y, op[1])).done) return t;
-            if (y = 0, t) op = [0, t.value];
+            if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
+            if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
                 case 0: case 1: t = op; break;
                 case 4: _.label++; return { value: op[1], done: false };
@@ -317,8 +317,8 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._downloadFilesFromManifest = function (baseUrl, manifest, versionId, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var _this = this;
             var size, downloaded, beforeDownloadTimer, downloadFile, downloads, count, maxBatch, numberBatches, _i, manifest_1, entry;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -529,37 +529,23 @@ var IonicDeployImpl = /** @class */ (function () {
         console.log("update: versionCode: " + update.binaryVersionCode + " versionName: " + update.binaryVersionName);
         return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
     };
-    IonicDeployImpl.prototype.cleanCurrentVersionIfStale = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, versionId;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
-                    case 0:
-                        prefs = this._savedPreferences;
-                        if (!prefs.currentVersionId) return [3 /*break*/, 4];
-                        _a = !this.isCurrentVersion(prefs.updates[prefs.currentVersionId]);
-                        if (!_a) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
-                    case 1:
-                        _a = !(_b.sent());
-                        _b.label = 2;
-                    case 2:
-                        if (!_a) return [3 /*break*/, 4];
-                        console.log("Update " + prefs.currentVersionId + " was built for different binary version removing update from device" +
-                            ("Update binaryVersionName: " + prefs.updates[prefs.currentVersionId].binaryVersionName + ", Device binaryVersionName " + prefs.binaryVersionName) +
-                            ("Update binaryVersionCode: " + prefs.updates[prefs.currentVersionId].binaryVersionCode + ", Device binaryVersionCode " + prefs.binaryVersionCode));
-                        versionId = prefs.currentVersionId;
-                        // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
-                        delete prefs.currentVersionId;
-                        return [4 /*yield*/, this.deleteVersionById(versionId)];
-                    case 3:
-                        _b.sent();
-                        _b.label = 4;
-                    case 4: return [2 /*return*/];
-                }
-            });
-        });
-    };
+    /*private async cleanCurrentVersionIfStale() {
+      const prefs = this._savedPreferences;
+      // Is the current version built from a previous binary?
+      if (prefs.currentVersionId) {
+        if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
+          console.log(
+            `Update ${prefs.currentVersionId} was built for different binary version removing update from device` +
+            `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
+            `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
+          );
+          const versionId = prefs.currentVersionId;
+          // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
+          delete prefs.currentVersionId;
+          await this.deleteVersionById(versionId);
+        }
+      }
+    }*/
     IonicDeployImpl.prototype._isRunningVersion = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
             var currentPath;
@@ -622,8 +608,8 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._copyBaseAppDir = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
-            var _this = this;
             var timer;
+            var _this = this;
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
@@ -837,8 +823,8 @@ var FileManager = /** @class */ (function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         resolveLocalFileSystemURL(path, function (entry) { return entry.isDirectory ? resolve(entry) : reject(); }, function () { return __awaiter(_this, void 0, void 0, function () {
-                            var _this = this;
                             var components, child, parent_1, e_5;
+                            var _this = this;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:

@@ -364,7 +364,7 @@ class IonicDeployImpl {
     return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
   }
 
-  private async cleanCurrentVersionIfStale() {
+  /*private async cleanCurrentVersionIfStale() {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
@@ -380,7 +380,7 @@ class IonicDeployImpl {
         await this.deleteVersionById(versionId);
       }
     }
-  }
+  }*/
 
   private async _isRunningVersion(versionId: string) {
     const currentPath = await this._getServerBasePath();
