@@ -72,7 +72,7 @@ class IonicDeployImpl {
 
   async _handleInitialPreferenceState() {
     // make sure we're not going to redirect to a stale version
-    await this.cleanCurrentVersionIfStale();
+    // await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
       console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
