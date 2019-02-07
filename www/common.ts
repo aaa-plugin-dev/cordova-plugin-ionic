@@ -489,7 +489,7 @@ class IonicDeployImpl {
 
     let updates = this.getStoredUpdates();
     // First clean stale versions
-    for (const update of updates) {
+    /*for (const update of updates) {
       if (!this.isCurrentVersion(update)) {
         console.log(
           `Update ${update.versionId} was built for different binary version removing update from device` +
@@ -498,7 +498,7 @@ class IonicDeployImpl {
         );
         await this.deleteVersionById(update.versionId);
       }
-    }
+    }*/
 
     // clean down to Max Updates stored
     updates = this.getStoredUpdates();
