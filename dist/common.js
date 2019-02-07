@@ -522,13 +522,13 @@ var IonicDeployImpl = /** @class */ (function () {
         });
     };
     // compare an update to the current version using both name & code
-    IonicDeployImpl.prototype.isCurrentVersion = function (update) {
-        var currentVersionCode = this._savedPreferences.binaryVersionCode;
-        var currentVersionName = this._savedPreferences.binaryVersionName;
-        console.log("Current: versionCode: " + currentVersionCode + " versionName: " + currentVersionName);
-        console.log("update: versionCode: " + update.binaryVersionCode + " versionName: " + update.binaryVersionName);
-        return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
-    };
+    /*private isCurrentVersion(update: IAvailableUpdate) {
+      const currentVersionCode = this._savedPreferences.binaryVersionCode;
+      const currentVersionName = this._savedPreferences.binaryVersionName;
+      console.log(`Current: versionCode: ${currentVersionCode} versionName: ${currentVersionName}`);
+      console.log(`update: versionCode: ${update.binaryVersionCode} versionName: ${update.binaryVersionName}`);
+      return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
+    }*/
     /*private async cleanCurrentVersionIfStale() {
       const prefs = this._savedPreferences;
       // Is the current version built from a previous binary?
@@ -719,47 +719,41 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanupVersions = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, updates, _i, updates_1, update, _a, updates_2, update;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var prefs, updates, _i, updates_1, update;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
                         updates = this.getStoredUpdates();
-                        _i = 0, updates_1 = updates;
-                        _b.label = 1;
-                    case 1:
-                        if (!(_i < updates_1.length)) return [3 /*break*/, 4];
-                        update = updates_1[_i];
-                        if (!!this.isCurrentVersion(update)) return [3 /*break*/, 3];
-                        console.log("Update " + update.versionId + " was built for different binary version removing update from device" +
-                            ("Update binaryVersionName: " + update.binaryVersionName + ", Device binaryVersionName " + prefs.binaryVersionName) +
-                            ("Update binaryVersionCode: " + update.binaryVersionCode + ", Device binaryVersionCode " + prefs.binaryVersionCode));
-                        return [4 /*yield*/, this.deleteVersionById(update.versionId)];
-                    case 2:
-                        _b.sent();
-                        _b.label = 3;
-                    case 3:
-                        _i++;
-                        return [3 /*break*/, 1];
-                    case 4:
+                        // First clean stale versions
+                        /*for (const update of updates) {
+                          if (!this.isCurrentVersion(update)) {
+                            console.log(
+                              `Update ${update.versionId} was built for different binary version removing update from device` +
+                              `Update binaryVersionName: ${update.binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
+                              `Update binaryVersionCode: ${update.binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
+                            );
+                            await this.deleteVersionById(update.versionId);
+                          }
+                        }*/
                         // clean down to Max Updates stored
                         updates = this.getStoredUpdates();
                         updates = updates.sort(function (a, b) { return a.lastUsed.localeCompare(b.lastUsed); });
                         updates = updates.reverse();
                         updates = updates.slice(prefs.maxVersions);
-                        _a = 0, updates_2 = updates;
-                        _b.label = 5;
-                    case 5:
-                        if (!(_a < updates_2.length)) return [3 /*break*/, 8];
-                        update = updates_2[_a];
+                        _i = 0, updates_1 = updates;
+                        _a.label = 1;
+                    case 1:
+                        if (!(_i < updates_1.length)) return [3 /*break*/, 4];
+                        update = updates_1[_i];
                         return [4 /*yield*/, this.deleteVersionById(update.versionId)];
-                    case 6:
-                        _b.sent();
-                        _b.label = 7;
-                    case 7:
-                        _a++;
-                        return [3 /*break*/, 5];
-                    case 8: return [2 /*return*/];
+                    case 2:
+                        _a.sent();
+                        _a.label = 3;
+                    case 3:
+                        _i++;
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/];
                 }
             });
         });

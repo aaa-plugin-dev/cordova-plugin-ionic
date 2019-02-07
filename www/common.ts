@@ -356,13 +356,13 @@ class IonicDeployImpl {
   }
 
   // compare an update to the current version using both name & code
-  private isCurrentVersion(update: IAvailableUpdate) {
+  /*private isCurrentVersion(update: IAvailableUpdate) {
     const currentVersionCode = this._savedPreferences.binaryVersionCode;
     const currentVersionName = this._savedPreferences.binaryVersionName;
     console.log(`Current: versionCode: ${currentVersionCode} versionName: ${currentVersionName}`);
     console.log(`update: versionCode: ${update.binaryVersionCode} versionName: ${update.binaryVersionName}`);
     return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
-  }
+  }*/
 
   /*private async cleanCurrentVersionIfStale() {
     const prefs = this._savedPreferences;
