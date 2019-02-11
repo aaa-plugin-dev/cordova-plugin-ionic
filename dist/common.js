@@ -414,23 +414,20 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._diffManifests = function (newManifest) {
         return __awaiter(this, void 0, void 0, function () {
-            var manifestResp, bundledManifest, bundleManifestStrings_1, e_2;
+            var oldManifest, oldManifestStrings_1, e_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 3, , 4]);
-                        return [4 /*yield*/, fetch(WEBVIEW_SERVER_URL + "/" + this.MANIFEST_FILE)];
+                        _a.trys.push([0, 2, , 3]);
+                        return [4 /*yield*/, this.getOldManifest()];
                     case 1:
-                        manifestResp = _a.sent();
-                        return [4 /*yield*/, manifestResp.json()];
+                        oldManifest = _a.sent();
+                        oldManifestStrings_1 = oldManifest.map(function (entry) { return JSON.stringify(entry); });
+                        return [2 /*return*/, newManifest.filter(function (entry) { return oldManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; })];
                     case 2:
-                        bundledManifest = _a.sent();
-                        bundleManifestStrings_1 = bundledManifest.map(function (entry) { return JSON.stringify(entry); });
-                        return [2 /*return*/, newManifest.filter(function (entry) { return bundleManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; })];
-                    case 3:
                         e_2 = _a.sent();
                         return [2 /*return*/, newManifest];
-                    case 4: return [2 /*return*/];
+                    case 3: return [2 /*return*/];
                 }
             });
         });
@@ -484,6 +481,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         prefs = this._savedPreferences;
                         if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready)) return [3 /*break*/, 2];
                         prefs.currentVersionId = prefs.availableUpdate.versionId;
+                        prefs.currentVersionForAppId = prefs.appId;
                         delete prefs.availableUpdate;
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 1:
@@ -613,25 +611,31 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var prefs, currentVersion, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 3, , 4]);
-                                    copyFrom = this.getBundledAppDir();
-                                    return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
+                                    _a.trys.push([0, 4, , 5]);
+                                    prefs = this._savedPreferences;
+                                    return [4 /*yield*/, this.getCurrentVersion()];
                                 case 1:
+                                    currentVersion = _a.sent();
+                                    copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+                                        ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
+                                        : this.getBundledAppDir();
+                                    return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
+                                case 2:
                                     rootAppDirEntry = _a.sent();
                                     return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
-                                case 2:
+                                case 3:
                                     snapshotCacheDirEntry = _a.sent();
                                     rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { timer.end(); resolve(); }, reject);
-                                    return [3 /*break*/, 4];
-                                case 3:
+                                    return [3 /*break*/, 5];
+                                case 4:
                                     e_4 = _a.sent();
                                     reject(e_4);
-                                    return [3 /*break*/, 4];
-                                case 4: return [2 /*return*/];
+                                    return [3 /*break*/, 5];
+                                case 5: return [2 /*return*/];
                             }
                         });
                     }); })];
@@ -672,6 +676,71 @@ var IonicDeployImpl = /** @class */ (function () {
             binaryVersionCode: update.binaryVersionCode,
             binaryVersionName: update.binaryVersionName
         };
+    };
+    /**
+     * Returns the old manifest to diff against.
+     * If the appId is switching from one to another, then this should return the manifest of the bundled app
+     *
+     * @returns {Promise<ManifestFileEntry>}
+     * @memberof IonicDeployImpl
+     */
+    IonicDeployImpl.prototype.getOldManifest = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!(this._savedPreferences.currentVersionId
+                            && this._savedPreferences.currentVersionForAppId === this._savedPreferences.appId)) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.getCurrentVersionManifest()];
+                    case 1: return [2 /*return*/, _a.sent()];
+                    case 2: return [4 /*yield*/, this.getBundledManifest()];
+                    case 3: return [2 /*return*/, _a.sent()];
+                }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.getCurrentVersionManifest = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var currentVersionId;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        currentVersionId = this._savedPreferences.currentVersionId;
+                        if (!currentVersionId) {
+                            return [2 /*return*/, []];
+                        }
+                        return [4 /*yield*/, this.parseManifestFile(this.getSnapshotCacheDir(currentVersionId))];
+                    case 1: return [2 /*return*/, _a.sent()];
+                }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.getBundledManifest = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, this.parseManifestFile(this.getBundledAppDir())];
+            });
+        });
+    };
+    IonicDeployImpl.prototype.parseManifestFile = function (dir) {
+        return __awaiter(this, void 0, void 0, function () {
+            var contents, manifest;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._fileManager.getFile(Path.join(dir, this.MANIFEST_FILE))];
+                    case 1:
+                        contents = _a.sent();
+                        manifest = [];
+                        try {
+                            manifest = JSON.parse(contents);
+                        }
+                        catch (err) {
+                            console.log('Json Parsing of manifest failed:', err, contents);
+                        }
+                        return [2 /*return*/, manifest];
+                }
+            });
+        });
     };
     IonicDeployImpl.prototype.getAvailableVersions = function () {
         return __awaiter(this, void 0, void 0, function () {
@@ -725,19 +794,6 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        updates = this.getStoredUpdates();
-                        // First clean stale versions
-                        /*for (const update of updates) {
-                          if (!this.isCurrentVersion(update)) {
-                            console.log(
-                              `Update ${update.versionId} was built for different binary version removing update from device` +
-                              `Update binaryVersionName: ${update.binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
-                              `Update binaryVersionCode: ${update.binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
-                            );
-                            await this.deleteVersionById(update.versionId);
-                          }
-                        }*/
-                        // clean down to Max Updates stored
                         updates = this.getStoredUpdates();
                         updates = updates.sort(function (a, b) { return a.lastUsed.localeCompare(b.lastUsed); });
                         updates = updates.reverse();

@@ -9,6 +9,7 @@ export interface IAvailableUpdate {
 }
 
 export interface ISavedPreferences extends ICurrentConfig {
+  currentVersionForAppId?: string;
   availableUpdate?: IAvailableUpdate;
   updates: { [versionId: string]: IAvailableUpdate };
 }

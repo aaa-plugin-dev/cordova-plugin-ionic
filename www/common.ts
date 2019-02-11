@@ -11,7 +11,6 @@ channel.waitForInitialization('onIonicProReady');
 
 declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
-declare const WEBVIEW_SERVER_URL: string;
 declare const Capacitor: any;
 
 enum UpdateMethod {
@@ -283,10 +282,15 @@ class IonicDeployImpl {
 
   private async _diffManifests(newManifest: ManifestFileEntry[]) {
     try {
+      /*
       const manifestResp = await fetch(`${WEBVIEW_SERVER_URL}/${this.MANIFEST_FILE}`);
       const bundledManifest: ManifestFileEntry[] = await manifestResp.json();
       const bundleManifestStrings = bundledManifest.map(entry => JSON.stringify(entry));
       return newManifest.filter(entry => bundleManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      */
+      const oldManifest = await this.getOldManifest();
+      const oldManifestStrings = oldManifest.map(entry => JSON.stringify(entry));
+      return newManifest.filter(entry => oldManifestStrings.indexOf(JSON.stringify(entry)) === -1);
     } catch (e) {
       return newManifest;
     }
@@ -322,6 +326,7 @@ class IonicDeployImpl {
     // Save the current update if it's ready
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready) {
       prefs.currentVersionId = prefs.availableUpdate.versionId;
+      prefs.currentVersionForAppId = prefs.appId;
       delete prefs.availableUpdate;
       await this._savePrefs(prefs);
     }
@@ -414,11 +419,11 @@ class IonicDeployImpl {
     const timer = new Timer('CopyBaseApp');
     return new Promise( async (resolve, reject) => {
       try {
-        /*const copyFrom = this._savedPreferences.currentVersionId
-          ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
-          : this.getBundledAppDir();*/
-
-        const copyFrom = this.getBundledAppDir();
+        const prefs = this._savedPreferences;
+        const currentVersion = await this.getCurrentVersion();
+        const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+          ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
+          : this.getBundledAppDir();
 
         const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
         const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
@@ -458,6 +463,54 @@ class IonicDeployImpl {
     };
   }
 
+  /**
+   * Returns the old manifest to diff against.
+   * If the appId is switching from one to another, then this should return the manifest of the bundled app
+   *
+   * @returns {Promise<ManifestFileEntry>}
+   * @memberof IonicDeployImpl
+   */
+  async getOldManifest(): Promise<ManifestFileEntry[]> {
+    if (this._savedPreferences.currentVersionId
+      && this._savedPreferences.currentVersionForAppId === this._savedPreferences.appId
+    ) {
+      return await this.getCurrentVersionManifest();
+    }
+
+    return await this.getBundledManifest();
+  }
+
+  async getCurrentVersionManifest(): Promise<ManifestFileEntry[]> {
+    const currentVersionId = this._savedPreferences.currentVersionId;
+
+    if (!currentVersionId) {
+      return [];
+    }
+
+    return await this.parseManifestFile(
+      this.getSnapshotCacheDir(currentVersionId)
+    );
+  }
+
+  async getBundledManifest(): Promise<ManifestFileEntry[]> {
+    return this.parseManifestFile(this.getBundledAppDir());
+  }
+
+  async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
+    const contents = await this._fileManager.getFile(
+      Path.join(dir, this.MANIFEST_FILE)
+    );
+    let manifest = [];
+
+    try {
+      manifest = JSON.parse(contents);
+    } catch (err) {
+      console.log('Json Parsing of manifest failed:', err, contents);
+    }
+
+    return manifest;
+  }
+
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
     return Object.keys(this._savedPreferences.updates).map(k => this._convertToSnapshotInfo(this._savedPreferences.updates[k]));
   }
@@ -494,7 +547,7 @@ class IonicDeployImpl {
   private async cleanupVersions() {
     const prefs = this._savedPreferences;
 
-    let updates = this.getStoredUpdates();
+    // let updates = this.getStoredUpdates();
     // First clean stale versions
     /*for (const update of updates) {
       if (!this.isCurrentVersion(update)) {
@@ -508,7 +561,7 @@ class IonicDeployImpl {
     }*/
 
     // clean down to Max Updates stored
-    updates = this.getStoredUpdates();
+    let updates = this.getStoredUpdates();
     updates = updates.sort((a, b) => a.lastUsed.localeCompare(b.lastUsed));
     updates = updates.reverse();
     updates = updates.slice(prefs.maxVersions);
