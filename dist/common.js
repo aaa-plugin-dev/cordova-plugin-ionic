@@ -618,9 +618,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             switch (_a.label) {
                                 case 0:
                                     _a.trys.push([0, 3, , 4]);
-                                    copyFrom = this._savedPreferences.currentVersionId
-                                        ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
-                                        : this.getBundledAppDir();
+                                    copyFrom = this.getBundledAppDir();
                                     return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
                                 case 1:
                                     rootAppDirEntry = _a.sent();
