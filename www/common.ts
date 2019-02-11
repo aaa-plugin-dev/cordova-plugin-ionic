@@ -414,10 +414,11 @@ class IonicDeployImpl {
     const timer = new Timer('CopyBaseApp');
     return new Promise( async (resolve, reject) => {
       try {
-        const copyFrom = this._savedPreferences.currentVersionId
+        /*const copyFrom = this._savedPreferences.currentVersionId
           ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
-          : this.getBundledAppDir();
+          : this.getBundledAppDir();*/
 
+        const copyFrom = this.getBundledAppDir();
 
         const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
         const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
