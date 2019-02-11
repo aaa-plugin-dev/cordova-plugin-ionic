@@ -613,12 +613,15 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
                                     _a.trys.push([0, 3, , 4]);
-                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getBundledAppDir(), false)];
+                                    copyFrom = this._savedPreferences.currentVersionId
+                                        ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
+                                        : this.getBundledAppDir();
+                                    return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
                                 case 1:
                                     rootAppDirEntry = _a.sent();
                                     return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
