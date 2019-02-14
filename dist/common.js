@@ -235,7 +235,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             manifest: true
                         };
                         timeout = new Promise(function (resolve, reject) {
-                            setTimeout(reject, 5000, 'Request timed out. The device maybe offline.');
+                            setTimeout(reject, 15000, 'Request timed out. The device maybe offline.');
                         });
                         request = fetch(endpoint, {
                             method: 'POST',
@@ -352,7 +352,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         downloads = [];
                         count = 0;
                         console.log("About to download " + manifest.length + " new files for update.");
-                        maxBatch = 20;
+                        maxBatch = 1;
                         numberBatches = Math.round(manifest.length / maxBatch);
                         if (manifest.length % maxBatch !== 0) {
                             numberBatches = numberBatches + 1;
@@ -611,31 +611,55 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var prefs, currentVersion, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var prefs, currentVersion, isBundledApp, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, rootAppDirEntry, snapshotCacheDirEntry, e_4;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 4, , 5]);
+                                    _a.trys.push([0, 11, , 12]);
                                     prefs = this._savedPreferences;
                                     return [4 /*yield*/, this.getCurrentVersion()];
                                 case 1:
                                     currentVersion = _a.sent();
+                                    return [4 /*yield*/, this.isBundledApp()];
+                                case 2:
+                                    isBundledApp = _a.sent();
+                                    if (!isBundledApp) return [3 /*break*/, 5];
                                     copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
                                         ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
                                         : this.getBundledAppDir();
                                     return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
-                                case 2:
+                                case 3:
                                     rootAppDirEntry = _a.sent();
                                     return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
-                                case 3:
+                                case 4:
                                     snapshotCacheDirEntry = _a.sent();
                                     rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { timer.end(); resolve(); }, reject);
-                                    return [3 /*break*/, 5];
-                                case 4:
+                                    return [3 /*break*/, 10];
+                                case 5:
+                                    if (!(currentVersion && prefs.currentVersionForAppId === prefs.appId)) return [3 /*break*/, 8];
+                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(this._savedPreferences.currentVersionId), false)];
+                                case 6:
+                                    rootAppDirEntry = _a.sent();
+                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
+                                case 7:
+                                    snapshotCacheDirEntry = _a.sent();
+                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { timer.end(); resolve(); }, reject);
+                                    return [3 /*break*/, 10];
+                                case 8: 
+                                // Create the target directory, don't copy anything
+                                return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(this._savedPreferences.currentVersionId))];
+                                case 9:
+                                    // Create the target directory, don't copy anything
+                                    _a.sent();
+                                    timer.end();
+                                    resolve();
+                                    _a.label = 10;
+                                case 10: return [3 /*break*/, 12];
+                                case 11:
                                     e_4 = _a.sent();
                                     reject(e_4);
-                                    return [3 /*break*/, 5];
-                                case 5: return [2 /*return*/];
+                                    return [3 /*break*/, 12];
+                                case 12: return [2 /*return*/];
                             }
                         });
                     }); })];
@@ -738,6 +762,28 @@ var IonicDeployImpl = /** @class */ (function () {
                             console.log('Json Parsing of manifest failed:', err, contents);
                         }
                         return [2 /*return*/, manifest];
+                }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.isBundledApp = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var contents, manifest, isBundledApp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._fileManager.getFile(Path.join(this.getBundledAppDir(), 'manifest.json'))];
+                    case 1:
+                        contents = _a.sent();
+                        manifest = {};
+                        isBundledApp = false;
+                        try {
+                            manifest = JSON.parse(contents);
+                            isBundledApp = (manifest.appId && manifest.appId === this._savedPreferences.appId) ? true : false;
+                        }
+                        catch (err) {
+                            console.log('Json Parsing of manifest failed:', err, contents);
+                        }
+                        return [2 /*return*/, isBundledApp];
                 }
             });
         });

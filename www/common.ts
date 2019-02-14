@@ -173,7 +173,7 @@ class IonicDeployImpl {
     };
 
     const timeout = new Promise( (resolve, reject) => {
-      setTimeout(reject, 5000, 'Request timed out. The device maybe offline.');
+      setTimeout(reject, 15000, 'Request timed out. The device maybe offline.');
     });
     const request = fetch(endpoint, {
       method: 'POST',
@@ -247,7 +247,7 @@ class IonicDeployImpl {
     let downloads = [];
     let count = 0;
     console.log(`About to download ${manifest.length} new files for update.`);
-    const maxBatch = 20;
+    const maxBatch = 1;
     let numberBatches = Math.round(manifest.length / maxBatch);
     if (manifest.length % maxBatch !== 0) {
       numberBatches = numberBatches + 1;
@@ -421,13 +421,33 @@ class IonicDeployImpl {
       try {
         const prefs = this._savedPreferences;
         const currentVersion = await this.getCurrentVersion();
-        const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
-          ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
-          : this.getBundledAppDir();
+        const isBundledApp = await this.isBundledApp();
 
-        const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
-        const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
-        rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => { timer.end(); resolve(); }, reject);
+        if (isBundledApp) {
+          // Bundled? check if has current version, otherwise copy bundled app over
+          const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+            ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
+            : this.getBundledAppDir();
+
+            const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
+            const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
+            rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => { timer.end(); resolve(); }, reject);
+        } else {
+          // Not bundled, but has current version to copy from?
+          if (currentVersion && prefs.currentVersionForAppId === prefs.appId) {
+            const rootAppDirEntry = await this._fileManager.getDirectory(
+              this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId),
+              false
+            );
+            const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
+            rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => { timer.end(); resolve(); }, reject);
+          } else {
+            // Create the target directory, don't copy anything
+            await this._fileManager.getDirectory(this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId));
+            timer.end();
+            resolve();
+          }
+        }
       } catch (e) {
         reject(e);
       }
@@ -509,6 +529,23 @@ class IonicDeployImpl {
     }
 
     return manifest;
+  }
+
+  async isBundledApp(): Promise<{}> {
+    const contents = await this._fileManager.getFile(
+      Path.join(this.getBundledAppDir(), 'manifest.json')
+    );
+    let manifest: {appId?: string } = {};
+    let isBundledApp = false;
+
+    try {
+      manifest = JSON.parse(contents);
+      isBundledApp = (manifest.appId && manifest.appId === this._savedPreferences.appId) ? true : false;
+    } catch (err) {
+      console.log('Json Parsing of manifest failed:', err, contents);
+    }
+
+    return isBundledApp;
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
