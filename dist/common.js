@@ -352,7 +352,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         downloads = [];
                         count = 0;
                         console.log("About to download " + manifest.length + " new files for update.");
-                        maxBatch = 1;
+                        maxBatch = 2;
                         numberBatches = Math.round(manifest.length / maxBatch);
                         if (manifest.length % maxBatch !== 0) {
                             numberBatches = numberBatches + 1;
@@ -1085,7 +1085,12 @@ var FileManager = /** @class */ (function () {
             var fileT;
             return __generator(this, function (_a) {
                 fileT = new FileTransfer();
-                return [2 /*return*/, new Promise(function (resolve, reject) { return fileT.download(url, path, resolve, reject); })];
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        return fileT.download(url, path, resolve, function () {
+                            return fileT.download(url, path, resolve, reject);
+                        } // retry each once
+                        );
+                    })];
             });
         });
     };

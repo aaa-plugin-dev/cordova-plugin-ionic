@@ -247,7 +247,7 @@ class IonicDeployImpl {
     let downloads = [];
     let count = 0;
     console.log(`About to download ${manifest.length} new files for update.`);
-    const maxBatch = 1;
+    const maxBatch = 2;
     let numberBatches = Math.round(manifest.length / maxBatch);
     if (manifest.length % maxBatch !== 0) {
       numberBatches = numberBatches + 1;
@@ -738,7 +738,11 @@ class FileManager {
 
   async downloadAndWriteFile(url: string, path: string) {
     const fileT = new FileTransfer();
-    return new Promise<FileEntry>((resolve, reject) => fileT.download(url, path, resolve, reject));
+    return new Promise<FileEntry>((resolve, reject) =>
+      fileT.download(url, path, resolve, () =>
+        fileT.download(url, path, resolve, reject) // retry each once
+      )
+    );
   }
 }
 
