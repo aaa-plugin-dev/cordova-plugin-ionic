@@ -517,18 +517,28 @@ class IonicDeployImpl {
   }
 
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
-    const contents = await this._fileManager.getFile(
-      Path.join(dir, this.MANIFEST_FILE)
-    );
-    let manifest = [];
+    const dirEntry = await this._fileManager.getDirectory(dir);
 
-    try {
-      manifest = JSON.parse(contents);
-    } catch (err) {
-      console.log('Json Parsing of manifest failed:', err, contents);
-    }
+    return new Promise<ManifestFileEntry[]>((resolve, reject) => {
+      dirEntry.getFile(this.MANIFEST_FILE, { create: false }, (fileEntry) => {
+        fileEntry.file((file: File) => {
+          const reader = new FileReader();
 
-    return manifest;
+          reader.onloadend = function() {
+            try {
+              console.log('Got Manifest:', fileEntry, this.result);
+              const manifest = JSON.parse(<string>this.result);
+              resolve(manifest);
+            } catch {
+              console.error('Could not parse JSON:', fileEntry, this.result);
+              reject();
+            }
+          };
+
+          reader.readAsText(file);
+        }, reject);
+      }, reject);
+    });
   }
 
   async isBundledApp(): Promise<{}> {
