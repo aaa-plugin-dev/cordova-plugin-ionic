@@ -90,20 +90,10 @@ var IonicDeployImpl = /** @class */ (function () {
     }
     IonicDeployImpl.prototype._handleInitialPreferenceState = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var WrappedFileReader, isOnline, updateMethod, _a, e_1;
+            var isOnline, updateMethod, _a, e_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
-                        WrappedFileReader = window['FileReader'];
-                        window['FileReader'] = function OriginalFileReader() {
-                            var args = [];
-                            for (var _i = 0; _i < arguments.length; _i++) {
-                                args[_i] = arguments[_i];
-                            }
-                            WrappedFileReader.apply(this, args);
-                            /* tslint:disable-next-line */
-                            return this[Zone.__symbol__('originalInstance')] || this;
-                        };
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
@@ -756,6 +746,13 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
+    IonicDeployImpl.prototype.getFileReader = function () {
+        var fileReader = new FileReader();
+        fileReader = fileReader['_realReader']
+            ? fileReader['_realReader']
+            : fileReader;
+        return fileReader;
+    };
     IonicDeployImpl.prototype.parseManifestFile = function (dir) {
         return __awaiter(this, void 0, void 0, function () {
             var dirEntry;
@@ -768,7 +765,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [2 /*return*/, new Promise(function (resolve, reject) {
                                 dirEntry.getFile(_this.MANIFEST_FILE, { create: false }, function (fileEntry) {
                                     fileEntry.file(function (file) {
-                                        var reader = new FileReader();
+                                        var reader = _this.getFileReader();
+                                        reader.onerror = function () { return reject(); };
+                                        reader.onabort = function () { return reject(); };
                                         reader.onloadend = function () {
                                             try {
                                                 console.log('Got Manifest:', fileEntry, this.result);
@@ -791,6 +790,7 @@ var IonicDeployImpl = /** @class */ (function () {
     IonicDeployImpl.prototype.isBundledApp = function () {
         return __awaiter(this, void 0, void 0, function () {
             var self, dirEntry;
+            var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -801,7 +801,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [2 /*return*/, new Promise(function (resolve, reject) {
                                 dirEntry.getFile('manifest.json', { create: false }, function (fileEntry) {
                                     fileEntry.file(function (file) {
-                                        var reader = new FileReader();
+                                        var reader = _this.getFileReader();
+                                        reader.onerror = function () { return reject(); };
+                                        reader.onabort = function () { return reject(); };
                                         reader.onloadend = function () {
                                             try {
                                                 console.log('Got Bundled Manifest:', fileEntry, this.result);

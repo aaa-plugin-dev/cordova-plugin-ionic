@@ -13,7 +13,6 @@ declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
 declare const Capacitor: any;
 declare const window: any;
-declare const Zone: any;
 
 enum UpdateMethod {
   BACKGROUND = 'background',
@@ -72,15 +71,6 @@ class IonicDeployImpl {
   }
 
   async _handleInitialPreferenceState() {
-
-    /* tslint:disable-next-line */
-    const WrappedFileReader: any = window['FileReader'];
-    window['FileReader'] = function OriginalFileReader(...args: Array<any>): FileReader {
-      WrappedFileReader.apply(this, args);
-
-      /* tslint:disable-next-line */
-      return this[Zone.__symbol__('originalInstance')] || this;
-    };
 
     // make sure we're not going to redirect to a stale version
     // await this.cleanCurrentVersionIfStale();
@@ -528,14 +518,26 @@ class IonicDeployImpl {
     return this.parseManifestFile(this.getBundledAppDir());
   }
 
+  getFileReader(): FileReader {
+    let fileReader: any = new FileReader();
+
+    fileReader = fileReader['_realReader']
+      ? fileReader['_realReader']
+      : fileReader;
+
+    return fileReader;
+  }
+
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
     const dirEntry = await this._fileManager.getDirectory(dir);
 
     return new Promise<ManifestFileEntry[]>((resolve, reject) => {
       dirEntry.getFile(this.MANIFEST_FILE, { create: false }, (fileEntry) => {
         fileEntry.file((file: File) => {
-          const reader = new FileReader();
+          const reader = this.getFileReader();
 
+          reader.onerror = () => reject();
+          reader.onabort = () => reject();
           reader.onloadend = function() {
             try {
               console.log('Got Manifest:', fileEntry, this.result);
@@ -560,8 +562,10 @@ class IonicDeployImpl {
     return new Promise<boolean>((resolve, reject) => {
       dirEntry.getFile('manifest.json', { create: false }, (fileEntry) => {
         fileEntry.file((file: File) => {
-          const reader = new FileReader();
+          const reader = this.getFileReader();
 
+          reader.onerror = () => reject();
+          reader.onabort = () => reject();
           reader.onloadend = function() {
             try {
               console.log('Got Bundled Manifest:', fileEntry, this.result);
@@ -811,7 +815,6 @@ class IonicDeploy implements IDeployPluginAPI {
       await (await this.delegate)._handleInitialPreferenceState();
     }
   }
-
   async _initPreferences(): Promise<ISavedPreferences> {
     return new Promise<ISavedPreferences>(async (resolve, reject) => {
       try {
