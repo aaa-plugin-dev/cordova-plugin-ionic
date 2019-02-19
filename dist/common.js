@@ -90,10 +90,20 @@ var IonicDeployImpl = /** @class */ (function () {
     }
     IonicDeployImpl.prototype._handleInitialPreferenceState = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var isOnline, updateMethod, _a, e_1;
+            var WrappedFileReader, isOnline, updateMethod, _a, e_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
+                        WrappedFileReader = window['FileReader'];
+                        window['FileReader'] = function OriginalFileReader() {
+                            var args = [];
+                            for (var _i = 0; _i < arguments.length; _i++) {
+                                args[_i] = arguments[_i];
+                            }
+                            WrappedFileReader.apply(this, args);
+                            /* tslint:disable-next-line */
+                            return this[Zone.__symbol__('originalInstance')] || this;
+                        };
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('The device appears to be offline. Loading last available version and skipping update checks.');

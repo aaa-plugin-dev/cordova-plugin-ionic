@@ -12,6 +12,8 @@ channel.waitForInitialization('onIonicProReady');
 declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
 declare const Capacitor: any;
+declare const window: any;
+declare const Zone: any;
 
 enum UpdateMethod {
   BACKGROUND = 'background',
@@ -70,6 +72,16 @@ class IonicDeployImpl {
   }
 
   async _handleInitialPreferenceState() {
+
+    /* tslint:disable-next-line */
+    const WrappedFileReader: any = window['FileReader'];
+    window['FileReader'] = function OriginalFileReader(...args: Array<any>): FileReader {
+      WrappedFileReader.apply(this, args);
+
+      /* tslint:disable-next-line */
+      return this[Zone.__symbol__('originalInstance')] || this;
+    };
+
     // make sure we're not going to redirect to a stale version
     // await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
