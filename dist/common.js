@@ -780,22 +780,33 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.isBundledApp = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var contents, manifest, isBundledApp;
+            var self, dirEntry;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._fileManager.getFile(Path.join(this.getBundledAppDir(), 'manifest.json'))];
+                    case 0:
+                        self = this;
+                        return [4 /*yield*/, this._fileManager.getDirectory(this.getBundledAppDir())];
                     case 1:
-                        contents = _a.sent();
-                        manifest = {};
-                        isBundledApp = false;
-                        try {
-                            manifest = JSON.parse(contents);
-                            isBundledApp = (manifest.appId && manifest.appId === this._savedPreferences.appId) ? true : false;
-                        }
-                        catch (err) {
-                            console.log('Json Parsing of manifest failed:', err, contents);
-                        }
-                        return [2 /*return*/, isBundledApp];
+                        dirEntry = _a.sent();
+                        return [2 /*return*/, new Promise(function (resolve, reject) {
+                                dirEntry.getFile('manifest.json', { create: false }, function (fileEntry) {
+                                    fileEntry.file(function (file) {
+                                        var reader = new FileReader();
+                                        reader.onloadend = function () {
+                                            try {
+                                                console.log('Got Bundled Manifest:', fileEntry, this.result);
+                                                var manifest = JSON.parse(this.result);
+                                                resolve((manifest.appId && manifest.appId === self._savedPreferences.appId) ? true : false);
+                                            }
+                                            catch (_a) {
+                                                console.error('Could not parse JSON:', fileEntry, this.result);
+                                                reject();
+                                            }
+                                        };
+                                        reader.readAsText(file);
+                                    }, reject);
+                                }, reject);
+                            })];
                 }
             });
         });

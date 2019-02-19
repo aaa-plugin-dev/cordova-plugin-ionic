@@ -542,20 +542,31 @@ class IonicDeployImpl {
   }
 
   async isBundledApp(): Promise<{}> {
-    const contents = await this._fileManager.getFile(
-      Path.join(this.getBundledAppDir(), 'manifest.json')
-    );
-    let manifest: {appId?: string } = {};
-    let isBundledApp = false;
+    const self = this;
+    const dirEntry = await this._fileManager.getDirectory(this.getBundledAppDir());
 
-    try {
-      manifest = JSON.parse(contents);
-      isBundledApp = (manifest.appId && manifest.appId === this._savedPreferences.appId) ? true : false;
-    } catch (err) {
-      console.log('Json Parsing of manifest failed:', err, contents);
-    }
+    return new Promise<boolean>((resolve, reject) => {
+      dirEntry.getFile('manifest.json', { create: false }, (fileEntry) => {
+        fileEntry.file((file: File) => {
+          const reader = new FileReader();
 
-    return isBundledApp;
+          reader.onloadend = function() {
+            try {
+              console.log('Got Bundled Manifest:', fileEntry, this.result);
+              const manifest = JSON.parse(<string>this.result);
+              resolve(
+                (manifest.appId && manifest.appId === self._savedPreferences.appId) ? true : false
+              );
+            } catch {
+              console.error('Could not parse JSON:', fileEntry, this.result);
+              reject();
+            }
+          };
+
+          reader.readAsText(file);
+        }, reject);
+      }, reject);
+    });
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
