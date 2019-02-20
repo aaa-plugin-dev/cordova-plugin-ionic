@@ -299,7 +299,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._diffManifests(manifestJson)];
                     case 2:
                         diffedManifest = _b.sent();
-                        return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId)];
+                        return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId, prefs.availableUpdate.url)];
                     case 3:
                         _b.sent();
                         return [4 /*yield*/, this._downloadFilesFromManifest(fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
@@ -414,7 +414,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._diffManifests = function (newManifest) {
         return __awaiter(this, void 0, void 0, function () {
-            var oldManifest, oldManifestStrings_1, e_2;
+            var oldManifest, oldManifestStrings_1, differences, e_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -423,7 +423,8 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 1:
                         oldManifest = _a.sent();
                         oldManifestStrings_1 = oldManifest.map(function (entry) { return JSON.stringify(entry); });
-                        return [2 /*return*/, newManifest.filter(function (entry) { return oldManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; })];
+                        differences = newManifest.filter(function (entry) { return oldManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; });
+                        return [2 /*return*/, differences];
                     case 2:
                         e_2 = _a.sent();
                         return [2 /*return*/, newManifest];
@@ -432,7 +433,7 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype.prepareUpdateDirectory = function (versionId) {
+    IonicDeployImpl.prototype.prepareUpdateDirectory = function (versionId, manifestJsonUrl) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -440,7 +441,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         console.log('Cleaned version directory');
-                        return [4 /*yield*/, this._copyBaseAppDir(versionId)];
+                        return [4 /*yield*/, this._copyBaseAppDir(versionId, manifestJsonUrl)];
                     case 2:
                         _a.sent();
                         console.log('Copied base app resources');
@@ -604,18 +605,19 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype._copyBaseAppDir = function (versionId) {
+    IonicDeployImpl.prototype._copyBaseAppDir = function (versionId, manifestJsonUrl) {
         return __awaiter(this, void 0, void 0, function () {
             var timer;
             var _this = this;
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var prefs, currentVersion, isBundledApp, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var prefs, currentVersion, isBundledApp, saveProManifest_1, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var _this = this;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
-                                    _a.trys.push([0, 11, , 12]);
+                                    _a.trys.push([0, 5, , 6]);
                                     prefs = this._savedPreferences;
                                     return [4 /*yield*/, this.getCurrentVersion()];
                                 case 1:
@@ -623,43 +625,44 @@ var IonicDeployImpl = /** @class */ (function () {
                                     return [4 /*yield*/, this.isBundledApp()];
                                 case 2:
                                     isBundledApp = _a.sent();
-                                    if (!isBundledApp) return [3 /*break*/, 5];
+                                    console.log('Is running bundled?', isBundledApp);
+                                    console.log('Current Version: ', currentVersion);
+                                    saveProManifest_1 = function (copyTo) { return __awaiter(_this, void 0, void 0, function () {
+                                        return __generator(this, function (_a) {
+                                            switch (_a.label) {
+                                                case 0: return [4 /*yield*/, this._fileManager.downloadAndWriteFile(manifestJsonUrl, Path.join(copyTo, 'pro-manifest.json'))];
+                                                case 1: return [2 /*return*/, _a.sent()];
+                                            }
+                                        });
+                                    }); };
                                     copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
                                         ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
                                         : this.getBundledAppDir();
+                                    console.log('Copying from: ', copyFrom);
                                     return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
                                 case 3:
                                     rootAppDirEntry = _a.sent();
                                     return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
                                 case 4:
                                     snapshotCacheDirEntry = _a.sent();
-                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { timer.end(); resolve(); }, reject);
-                                    return [3 /*break*/, 10];
+                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { return __awaiter(_this, void 0, void 0, function () {
+                                        return __generator(this, function (_a) {
+                                            switch (_a.label) {
+                                                case 0: return [4 /*yield*/, saveProManifest_1(Path.join(this.getSnapshotCacheDir(''), versionId))];
+                                                case 1:
+                                                    _a.sent();
+                                                    timer.end();
+                                                    resolve();
+                                                    return [2 /*return*/];
+                                            }
+                                        });
+                                    }); }, reject);
+                                    return [3 /*break*/, 6];
                                 case 5:
-                                    if (!(currentVersion && prefs.currentVersionForAppId === prefs.appId)) return [3 /*break*/, 8];
-                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(this._savedPreferences.currentVersionId), false)];
-                                case 6:
-                                    rootAppDirEntry = _a.sent();
-                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
-                                case 7:
-                                    snapshotCacheDirEntry = _a.sent();
-                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { timer.end(); resolve(); }, reject);
-                                    return [3 /*break*/, 10];
-                                case 8: 
-                                // Create the target directory, don't copy anything
-                                return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(this._savedPreferences.currentVersionId))];
-                                case 9:
-                                    // Create the target directory, don't copy anything
-                                    _a.sent();
-                                    timer.end();
-                                    resolve();
-                                    _a.label = 10;
-                                case 10: return [3 /*break*/, 12];
-                                case 11:
                                     e_4 = _a.sent();
                                     reject(e_4);
-                                    return [3 /*break*/, 12];
-                                case 12: return [2 /*return*/];
+                                    return [3 /*break*/, 6];
+                                case 6: return [2 /*return*/];
                             }
                         });
                     }); })];
@@ -741,84 +744,56 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.getBundledManifest = function () {
         return __awaiter(this, void 0, void 0, function () {
+            var resp;
             return __generator(this, function (_a) {
-                return [2 /*return*/, this.parseManifestFile(this.getBundledAppDir())];
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, fetch(WEBVIEW_SERVER_URL + "/" + this.MANIFEST_FILE, {
+                            method: 'GET',
+                            redirect: 'follow',
+                        })];
+                    case 1:
+                        resp = _a.sent();
+                        return [4 /*yield*/, resp.json()];
+                    case 2: return [2 /*return*/, _a.sent()];
+                }
             });
         });
     };
-    IonicDeployImpl.prototype.getFileReader = function () {
-        var fileReader = new FileReader();
-        fileReader = fileReader['_realReader']
-            ? fileReader['_realReader']
-            : fileReader;
-        return fileReader;
-    };
     IonicDeployImpl.prototype.parseManifestFile = function (dir) {
         return __awaiter(this, void 0, void 0, function () {
-            var dirEntry;
-            var _this = this;
+            var fileContents, manifest;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._fileManager.getDirectory(dir)];
+                    case 0: return [4 /*yield*/, this._fileManager.getFile(Path.join(dir, this.MANIFEST_FILE))];
                     case 1:
-                        dirEntry = _a.sent();
-                        return [2 /*return*/, new Promise(function (resolve, reject) {
-                                dirEntry.getFile(_this.MANIFEST_FILE, { create: false }, function (fileEntry) {
-                                    fileEntry.file(function (file) {
-                                        var reader = _this.getFileReader();
-                                        reader.onerror = function () { return reject(); };
-                                        reader.onabort = function () { return reject(); };
-                                        reader.onloadend = function () {
-                                            try {
-                                                console.log('Got Manifest:', fileEntry, this.result);
-                                                var manifest = JSON.parse(this.result);
-                                                resolve(manifest);
-                                            }
-                                            catch (_a) {
-                                                console.error('Could not parse JSON:', fileEntry, this.result);
-                                                reject();
-                                            }
-                                        };
-                                        reader.readAsText(file);
-                                    }, reject);
-                                }, reject);
-                            })];
+                        fileContents = _a.sent();
+                        try {
+                            manifest = JSON.parse(fileContents);
+                            return [2 /*return*/, manifest];
+                        }
+                        catch (err) {
+                            console.error('Could not parse JSON:', fileContents);
+                        }
+                        return [2 /*return*/, []];
                 }
             });
         });
     };
     IonicDeployImpl.prototype.isBundledApp = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var self, dirEntry;
-            var _this = this;
+            var resp, json;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0:
-                        self = this;
-                        return [4 /*yield*/, this._fileManager.getDirectory(this.getBundledAppDir())];
+                    case 0: return [4 /*yield*/, fetch(WEBVIEW_SERVER_URL + "/manifest.json", {
+                            method: 'GET',
+                            redirect: 'follow',
+                        })];
                     case 1:
-                        dirEntry = _a.sent();
-                        return [2 /*return*/, new Promise(function (resolve, reject) {
-                                dirEntry.getFile('manifest.json', { create: false }, function (fileEntry) {
-                                    fileEntry.file(function (file) {
-                                        var reader = _this.getFileReader();
-                                        reader.onerror = function () { return reject(); };
-                                        reader.onabort = function () { return reject(); };
-                                        reader.onloadend = function () {
-                                            try {
-                                                console.log('Got Bundled Manifest:', fileEntry, this.result);
-                                                var manifest = JSON.parse(this.result);
-                                                resolve((manifest.appId && manifest.appId === self._savedPreferences.appId) ? true : false);
-                                            }
-                                            catch (_a) {
-                                                console.error('Could not parse JSON:', fileEntry, this.result);
-                                                reject();
-                                            }
-                                        };
-                                        reader.readAsText(file);
-                                    }, reject);
-                                }, reject);
-                            })];
+                        resp = _a.sent();
+                        return [4 /*yield*/, resp.json()];
+                    case 2:
+                        json = _a.sent();
+                        return [2 /*return*/, resp.ok && json && json.appId && json.appId === this._savedPreferences.appId ? true : false];
                 }
             });
         });

@@ -11,8 +11,8 @@ channel.waitForInitialization('onIonicProReady');
 
 declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
+declare const WEBVIEW_SERVER_URL: string;
 declare const Capacitor: any;
-declare const window: any;
 
 enum UpdateMethod {
   BACKGROUND = 'background',
@@ -36,7 +36,6 @@ import {
   isPluginConfig
 } from './guards';
 
-
 class Path {
     static join(...paths: string[]): string {
         let fullPath: string = paths.shift() || '';
@@ -49,6 +48,7 @@ class Path {
         return fullPath;
     }
 }
+
 
 /**
  * LIVE UPDATE API
@@ -71,7 +71,6 @@ class IonicDeployImpl {
   }
 
   async _handleInitialPreferenceState() {
-
     // make sure we're not going to redirect to a stale version
     // await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
@@ -154,6 +153,7 @@ class IonicDeployImpl {
     if (!isOnline) {
       throw new Error('The device is offline.');
     }
+
     const prefs = this._savedPreferences;
     const appInfo = this.appInfo;
     const endpoint = `${prefs.host}/apps/${prefs.appId}/channels/check-device`;
@@ -216,7 +216,7 @@ class IonicDeployImpl {
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
       const { fileBaseUrl, manifestJson } = await this._fetchManifest(prefs.availableUpdate.url);
       const diffedManifest = await this._diffManifests(manifestJson);
-      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId);
+      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId, prefs.availableUpdate.url);
       await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
       prefs.availableUpdate.state = UpdateState.Pending;
       await this._savePrefs(prefs);
@@ -292,17 +292,18 @@ class IonicDeployImpl {
       */
       const oldManifest = await this.getOldManifest();
       const oldManifestStrings = oldManifest.map(entry => JSON.stringify(entry));
-      return newManifest.filter(entry => oldManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      const differences = newManifest.filter(entry => oldManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      return differences;
     } catch (e) {
       return newManifest;
     }
   }
 
-  private async prepareUpdateDirectory(versionId: string) {
+  private async prepareUpdateDirectory(versionId: string, manifestJsonUrl: string) {
     await this._cleanSnapshotDir(versionId);
     console.log('Cleaned version directory');
 
-    await this._copyBaseAppDir(versionId);
+    await this._copyBaseAppDir(versionId, manifestJsonUrl);
     console.log('Copied base app resources');
   }
 
@@ -417,7 +418,7 @@ class IonicDeployImpl {
     }
   }
 
-  private async _copyBaseAppDir(versionId: string) {
+  private async _copyBaseAppDir(versionId: string, manifestJsonUrl: string) {
     const timer = new Timer('CopyBaseApp');
     return new Promise( async (resolve, reject) => {
       try {
@@ -425,31 +426,31 @@ class IonicDeployImpl {
         const currentVersion = await this.getCurrentVersion();
         const isBundledApp = await this.isBundledApp();
 
-        if (isBundledApp) {
-          // Bundled? check if has current version, otherwise copy bundled app over
-          const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
-            ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
-            : this.getBundledAppDir();
+        console.log('Is running bundled?', isBundledApp);
+        console.log('Current Version: ', currentVersion);
 
-            const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
-            const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
-            rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => { timer.end(); resolve(); }, reject);
-        } else {
-          // Not bundled, but has current version to copy from?
-          if (currentVersion && prefs.currentVersionForAppId === prefs.appId) {
-            const rootAppDirEntry = await this._fileManager.getDirectory(
-              this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId),
-              false
-            );
-            const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
-            rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => { timer.end(); resolve(); }, reject);
-          } else {
-            // Create the target directory, don't copy anything
-            await this._fileManager.getDirectory(this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId));
-            timer.end();
-            resolve();
-          }
-        }
+        // After downloading, we need to overwrite the pro-manisfest with the downloaded version, then future
+        // diffs will work. Otherwise, the app might diff against a previous pro-manifest, which will cause files to de-sync.
+        const saveProManifest = async (copyTo: string): Promise<any> => {
+          return await this._fileManager.downloadAndWriteFile(manifestJsonUrl, Path.join(copyTo, 'pro-manifest.json'));
+        };
+
+        // Bundled? check if has current version, otherwise copy bundled app over
+        const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+          ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
+          : this.getBundledAppDir();
+
+        console.log('Copying from: ', copyFrom);
+
+        const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
+        const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
+
+        rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, async () => {
+          await saveProManifest(Path.join(this.getSnapshotCacheDir(''), versionId));
+          timer.end();
+          resolve();
+        }, reject);
+
       } catch (e) {
         reject(e);
       }
@@ -514,75 +515,37 @@ class IonicDeployImpl {
     );
   }
 
-  async getBundledManifest(): Promise<ManifestFileEntry[]> {
-    return this.parseManifestFile(this.getBundledAppDir());
-  }
-
-  getFileReader(): FileReader {
-    let fileReader: any = new FileReader();
-
-    fileReader = fileReader['_realReader']
-      ? fileReader['_realReader']
-      : fileReader;
-
-    return fileReader;
+  private async getBundledManifest(): Promise<ManifestFileEntry[]> {
+    const resp = await fetch(`${WEBVIEW_SERVER_URL}/${this.MANIFEST_FILE}`, {
+      method: 'GET',
+      redirect: 'follow',
+    });
+    return await resp.json();
   }
 
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
-    const dirEntry = await this._fileManager.getDirectory(dir);
+    const fileContents = await this._fileManager.getFile(
+      Path.join(dir, this.MANIFEST_FILE)
+    );
 
-    return new Promise<ManifestFileEntry[]>((resolve, reject) => {
-      dirEntry.getFile(this.MANIFEST_FILE, { create: false }, (fileEntry) => {
-        fileEntry.file((file: File) => {
-          const reader = this.getFileReader();
+    try {
+      const manifest = JSON.parse(<string>fileContents);
+      return manifest;
+    } catch (err) {
+      console.error('Could not parse JSON:', fileContents);
+    }
 
-          reader.onerror = () => reject();
-          reader.onabort = () => reject();
-          reader.onloadend = function() {
-            try {
-              console.log('Got Manifest:', fileEntry, this.result);
-              const manifest = JSON.parse(<string>this.result);
-              resolve(manifest);
-            } catch {
-              console.error('Could not parse JSON:', fileEntry, this.result);
-              reject();
-            }
-          };
-
-          reader.readAsText(file);
-        }, reject);
-      }, reject);
-    });
+    return [];
   }
 
-  async isBundledApp(): Promise<{}> {
-    const self = this;
-    const dirEntry = await this._fileManager.getDirectory(this.getBundledAppDir());
-
-    return new Promise<boolean>((resolve, reject) => {
-      dirEntry.getFile('manifest.json', { create: false }, (fileEntry) => {
-        fileEntry.file((file: File) => {
-          const reader = this.getFileReader();
-
-          reader.onerror = () => reject();
-          reader.onabort = () => reject();
-          reader.onloadend = function() {
-            try {
-              console.log('Got Bundled Manifest:', fileEntry, this.result);
-              const manifest = JSON.parse(<string>this.result);
-              resolve(
-                (manifest.appId && manifest.appId === self._savedPreferences.appId) ? true : false
-              );
-            } catch {
-              console.error('Could not parse JSON:', fileEntry, this.result);
-              reject();
-            }
-          };
-
-          reader.readAsText(file);
-        }, reject);
-      }, reject);
+  async isBundledApp(): Promise<boolean> {
+    const resp = await fetch(`${WEBVIEW_SERVER_URL}/manifest.json`, {
+      method: 'GET',
+      redirect: 'follow',
     });
+    const json = await <{ appId?: string }>resp.json();
+
+    return resp.ok && json && json.appId && json.appId === this._savedPreferences.appId ? true : false;
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
