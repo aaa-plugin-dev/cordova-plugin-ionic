@@ -317,13 +317,14 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._downloadFilesFromManifest = function (baseUrl, manifest, versionId, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var size, downloaded, beforeDownloadTimer, downloadFile, downloads, count, maxBatch, numberBatches, _i, manifest_1, entry;
+            var size, downloaded, concurrent, beforeDownloadTimer, downloadFile, downloads, _i, manifest_1, entry;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         console.log('Downloading update...');
                         size = 0, downloaded = 0;
+                        concurrent = 3;
                         manifest.forEach(function (i) {
                             size += i.size;
                         });
@@ -350,43 +351,66 @@ var IonicDeployImpl = /** @class */ (function () {
                             });
                         }); };
                         downloads = [];
-                        count = 0;
-                        console.log("About to download " + manifest.length + " new files for update.");
-                        maxBatch = 2;
-                        numberBatches = Math.round(manifest.length / maxBatch);
-                        if (manifest.length % maxBatch !== 0) {
-                            numberBatches = numberBatches + 1;
+                        console.log("Downloading " + manifest.length + " new files...");
+                        for (_i = 0, manifest_1 = manifest; _i < manifest_1.length; _i++) {
+                            entry = manifest_1[_i];
+                            downloads.push(entry);
                         }
-                        _i = 0, manifest_1 = manifest;
-                        _a.label = 1;
+                        return [4 /*yield*/, this.asyncPoolDownloads(concurrent, downloads, function (entry) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, downloadFile(entry)];
+                                    case 1: return [2 /*return*/, _a.sent()];
+                                }
+                            }); }); })];
                     case 1:
-                        if (!(_i < manifest_1.length)) return [3 /*break*/, 5];
-                        entry = manifest_1[_i];
-                        if (!(downloads.length >= maxBatch)) return [3 /*break*/, 3];
-                        count++;
-                        return [4 /*yield*/, Promise.all(downloads)];
-                    case 2:
                         _a.sent();
-                        beforeDownloadTimer.diff("downloaded batch " + count + " of " + numberBatches + " downloads. Done downloading " + count * maxBatch + " of " + manifest.length + " files");
-                        downloads = [];
-                        _a.label = 3;
-                    case 3:
-                        downloads.push(downloadFile(entry));
-                        _a.label = 4;
-                    case 4:
-                        _i++;
-                        return [3 /*break*/, 1];
-                    case 5:
-                        if (!downloads.length) return [3 /*break*/, 7];
-                        count++;
-                        return [4 /*yield*/, Promise.all(downloads)];
-                    case 6:
-                        _a.sent();
-                        beforeDownloadTimer.diff("downloaded batch " + count + " of " + numberBatches + " downloads. Done downloading all " + manifest.length + " files");
-                        _a.label = 7;
-                    case 7:
+                        console.log("Files downloaded.");
                         beforeDownloadTimer.end("Downloaded " + manifest.length + " files");
                         return [2 /*return*/];
+                }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.asyncPoolDownloads = function (poolLimit, array, iteratorFn) {
+        return __awaiter(this, void 0, void 0, function () {
+            var realPoolLimit, ret, executing, _loop_1, _i, array_1, item;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        realPoolLimit = poolLimit >= array.length ? array.length : poolLimit;
+                        ret = [];
+                        executing = [];
+                        _loop_1 = function (item) {
+                            var p, e;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        p = Promise.resolve().then(function () { return iteratorFn(item, array); });
+                                        ret.push(p);
+                                        e = p.then(function () { return executing.splice(executing.indexOf(e), 1); });
+                                        executing.push(e);
+                                        if (!(executing.length >= realPoolLimit)) return [3 /*break*/, 2];
+                                        return [4 /*yield*/, Promise.race(executing)];
+                                    case 1:
+                                        _a.sent();
+                                        _a.label = 2;
+                                    case 2: return [2 /*return*/];
+                                }
+                            });
+                        };
+                        _i = 0, array_1 = array;
+                        _a.label = 1;
+                    case 1:
+                        if (!(_i < array_1.length)) return [3 /*break*/, 4];
+                        item = array_1[_i];
+                        return [5 /*yield**/, _loop_1(item)];
+                    case 2:
+                        _a.sent();
+                        _a.label = 3;
+                    case 3:
+                        _i++;
+                        return [3 /*break*/, 1];
+                    case 4: return [2 /*return*/, Promise.all(ret)];
                 }
             });
         });
@@ -1069,15 +1093,33 @@ var FileManager = /** @class */ (function () {
     };
     FileManager.prototype.downloadAndWriteFile = function (url, path) {
         return __awaiter(this, void 0, void 0, function () {
-            var fileT;
+            var fileT, retries, attempts, tryDownload;
             return __generator(this, function (_a) {
                 fileT = new FileTransfer();
-                return [2 /*return*/, new Promise(function (resolve, reject) {
-                        return fileT.download(url, path, resolve, function () {
-                            return fileT.download(url, path, resolve, reject);
-                        } // retry each once
-                        );
-                    })];
+                retries = 1;
+                attempts = 0;
+                tryDownload = function () {
+                    attempts++;
+                    // 100 second per file limit, if this is exceeded then cancel and retry
+                    // 900KB @ 128kbit/s = 57 seconds
+                    var timeout = setTimeout(function () {
+                        fileT.abort();
+                    }, 100000);
+                    return new Promise(function (resolve, reject) {
+                        fileT.download(url, path, function () {
+                            clearTimeout(timeout);
+                            resolve();
+                        }, function () {
+                            if (attempts <= retries) {
+                                clearTimeout(timeout);
+                                tryDownload()
+                                    .then(resolve)
+                                    .catch(reject);
+                            }
+                        });
+                    });
+                };
+                return [2 /*return*/, tryDownload()];
             });
         });
     };
@@ -1392,16 +1434,16 @@ var Timer = /** @class */ (function () {
         this.name = name;
         this.startTime = new Date();
         this.lastTime = new Date();
-        console.log("Starting IonicTimer " + this.name);
+        // console.log(`Starting IonicTimer ${this.name}`);
     }
     Timer.prototype.end = function (extraLog) {
-        console.log("Finished IonicTimer " + this.name + " in " + (new Date().getTime() - this.startTime.getTime()) / 1000 + " seconds.");
+        // console.log(`Finished IonicTimer ${this.name} in ${(new Date().getTime() - this.startTime.getTime()) / 1000} seconds.`);
         if (extraLog) {
-            console.log("IonicTimer extra " + extraLog);
+            // console.log(`IonicTimer extra ${extraLog}`);
         }
     };
     Timer.prototype.diff = function (message) {
-        console.log("Message: " + message + " Diff IonicTimer " + this.name + " in " + (new Date().getTime() - this.lastTime.getTime()) / 1000 + " seconds.");
+        // console.log(`Message: ${message} Diff IonicTimer ${this.name} in ${(new Date().getTime() - this.lastTime.getTime()) / 1000} seconds.`);
         this.lastTime = new Date();
     };
     return Timer;

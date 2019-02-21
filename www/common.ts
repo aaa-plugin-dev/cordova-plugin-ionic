@@ -228,6 +228,8 @@ class IonicDeployImpl {
   private async _downloadFilesFromManifest(baseUrl: string, manifest: ManifestFileEntry[], versionId: string, progress?: CallbackFunction<number>) {
     console.log('Downloading update...');
     let size = 0, downloaded = 0;
+    const concurrent = 3;
+
     manifest.forEach(i => {
       size += i.size;
     });
@@ -246,29 +248,35 @@ class IonicDeployImpl {
       }
     };
 
-    let downloads = [];
-    let count = 0;
-    console.log(`About to download ${manifest.length} new files for update.`);
-    const maxBatch = 2;
-    let numberBatches = Math.round(manifest.length / maxBatch);
-    if (manifest.length % maxBatch !== 0) {
-      numberBatches = numberBatches + 1;
-    }
+    const downloads = [];
+    console.log(`Downloading ${manifest.length} new files...`);
     for (const entry of manifest) {
-      if (downloads.length >= maxBatch) {
-        count++;
-        await Promise.all(downloads);
-        beforeDownloadTimer.diff(`downloaded batch ${count} of ${numberBatches} downloads. Done downloading ${count * maxBatch} of ${manifest.length} files`);
-        downloads = [];
-      }
-      downloads.push(downloadFile(entry));
+      downloads.push(entry);
     }
-    if (downloads.length) {
-      count++;
-      await Promise.all(downloads);
-      beforeDownloadTimer.diff(`downloaded batch ${count} of ${numberBatches} downloads. Done downloading all ${manifest.length} files`);
-    }
+
+    await this.asyncPoolDownloads(concurrent, downloads, async (entry: ManifestFileEntry) =>
+      await downloadFile(entry)
+    );
+
+    console.log(`Files downloaded.`);
+
     beforeDownloadTimer.end(`Downloaded ${manifest.length} files`);
+  }
+
+  async asyncPoolDownloads(poolLimit: number, array: any[], iteratorFn: Function) {
+    const realPoolLimit = poolLimit >= array.length ? array.length : poolLimit;
+    const ret = [];
+    const executing: any[] = [];
+    for (const item of array) {
+      const p = Promise.resolve().then(() => iteratorFn(item, array));
+      ret.push(p);
+      const e: any = p.then(() => executing.splice(executing.indexOf(e), 1));
+      executing.push(e);
+      if (executing.length >= realPoolLimit) {
+        await Promise.race(executing);
+      }
+    }
+    return Promise.all(ret);
   }
 
   private async _fetchManifest(url: string): Promise<FetchManifestResp> {
@@ -717,14 +725,36 @@ class FileManager {
 
   async downloadAndWriteFile(url: string, path: string) {
     const fileT = new FileTransfer();
-    return new Promise<FileEntry>((resolve, reject) =>
-      fileT.download(url, path, resolve, () =>
-        fileT.download(url, path, resolve, reject) // retry each once
-      )
-    );
+    const retries = 1;
+    let attempts = 0;
+
+    const tryDownload = (): Promise<void> => {
+      attempts++;
+
+      // 100 second per file limit, if this is exceeded then cancel and retry
+      // 900KB @ 128kbit/s = 57 seconds
+      const timeout = setTimeout(() => {
+        fileT.abort();
+      }, 100000);
+
+      return new Promise((resolve, reject) => {
+        fileT.download(url, path, () => {
+          clearTimeout(timeout);
+          resolve();
+        }, () => {
+          if (attempts <= retries) {
+            clearTimeout(timeout);
+            tryDownload()
+              .then(resolve)
+              .catch(reject);
+          }
+        });
+      });
+    };
+
+    return tryDownload();
   }
 }
-
 
 
 class IonicDeploy implements IDeployPluginAPI {
@@ -907,18 +937,18 @@ class Timer {
     this.name = name;
     this.startTime = new Date();
     this.lastTime = new Date();
-    console.log(`Starting IonicTimer ${this.name}`);
+    // console.log(`Starting IonicTimer ${this.name}`);
   }
 
   end(extraLog?: string) {
-    console.log(`Finished IonicTimer ${this.name} in ${(new Date().getTime() - this.startTime.getTime()) / 1000} seconds.`);
+    // console.log(`Finished IonicTimer ${this.name} in ${(new Date().getTime() - this.startTime.getTime()) / 1000} seconds.`);
     if (extraLog) {
-      console.log(`IonicTimer extra ${extraLog}`);
+      // console.log(`IonicTimer extra ${extraLog}`);
     }
   }
 
   diff(message?: string) {
-    console.log(`Message: ${message} Diff IonicTimer ${this.name} in ${(new Date().getTime() - this.lastTime.getTime()) / 1000} seconds.`);
+    // console.log(`Message: ${message} Diff IonicTimer ${this.name} in ${(new Date().getTime() - this.lastTime.getTime()) / 1000} seconds.`);
     this.lastTime = new Date();
   }
 }
