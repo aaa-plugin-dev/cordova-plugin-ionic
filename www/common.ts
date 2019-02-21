@@ -64,6 +64,7 @@ class IonicDeployImpl {
   private SNAPSHOT_CACHE = 'ionic_built_snapshots';
   private MANIFEST_FILE = 'pro-manifest.json';
   public PLUGIN_VERSION = '5.2.10';
+  private lastProgressEvent = 0;
 
   constructor(appInfo: IAppInfo, preferences: ISavedPreferences) {
     this.appInfo = appInfo;
@@ -212,6 +213,7 @@ class IonicDeployImpl {
   }
 
   async downloadUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
+    this.lastProgressEvent = 0;
     const prefs = this._savedPreferences;
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
       const { fileBaseUrl, manifestJson } = await this._fetchManifest(prefs.availableUpdate.url);
@@ -227,6 +229,7 @@ class IonicDeployImpl {
 
   private async _downloadFilesFromManifest(baseUrl: string, manifest: ManifestFileEntry[], versionId: string, progress?: CallbackFunction<number>) {
     console.log('Downloading update...');
+
     let size = 0, downloaded = 0;
     const concurrent = 3;
 
@@ -234,18 +237,33 @@ class IonicDeployImpl {
       size += i.size;
     });
 
+    const reportProgress = () => {
+      const percentage = Math.floor((downloaded / size) * 100);
+
+      if (percentage === this.lastProgressEvent) {
+        return;
+      }
+
+      this.lastProgressEvent = percentage;
+      progress && progress(percentage);
+    };
+
     const beforeDownloadTimer = new Timer('downloadTimer');
     const downloadFile = async (file: ManifestFileEntry) => {
       const base = new URL(baseUrl);
       const newUrl = new URL(file.href, baseUrl);
       newUrl.search = base.search;
       const filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
-      await this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath);
-      // Update progress
-      downloaded += file.size;
-      if (progress) {
-        progress(Math.floor((downloaded / size) * 100));
-      }
+      const bytesLoaded = await this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath, (bytes) => {
+        if (bytes) {
+          downloaded += bytes;
+          reportProgress();
+        }
+      });
+
+      // Report download, removing already reported
+      downloaded += file.size - bytesLoaded;
+      reportProgress();
     };
 
     const downloads = [];
@@ -723,21 +741,43 @@ class FileManager {
     });
   }
 
-  async downloadAndWriteFile(url: string, path: string) {
+async downloadAndWriteFile(url: string, path: string, progressFn: CallbackFunction<number> = () => void 0): Promise<number> {
     const fileT = new FileTransfer();
     const retries = 1;
+    let loaded = 0;
     let attempts = 0;
 
-    const tryDownload = (): Promise<void> => {
+    // On progress, increment total progress
+    fileT.onprogress = (progress) => {
+      if (progress.loaded) {
+        // report only the difference from last time
+        progressFn(progress.loaded - loaded);
+        loaded = progress.loaded;
+      } else {
+        // increment by 1 byte to keep progress events flowing
+        progressFn(1);
+      }
+    };
+
+    const tryDownload = (): Promise<number> => {
       attempts++;
       return new Promise((resolve, reject) => {
         fileT.download(url, path, () => {
-          resolve();
+          resolve(loaded);
         }, () => {
+
+          // trigger progress, removing the previously loaded bytes, then reset loaded
+          progressFn(-Math.abs(loaded));
+          loaded = 0;
+
+          // Can we retry?
           if (attempts <= retries) {
             tryDownload()
               .then(resolve)
               .catch(reject);
+          } else {
+            // no more retries remaining...
+            reject();
           }
         });
       });

@@ -85,6 +85,7 @@ var IonicDeployImpl = /** @class */ (function () {
         this.SNAPSHOT_CACHE = 'ionic_built_snapshots';
         this.MANIFEST_FILE = 'pro-manifest.json';
         this.PLUGIN_VERSION = '5.2.10';
+        this.lastProgressEvent = 0;
         this.appInfo = appInfo;
         this._savedPreferences = preferences;
     }
@@ -291,6 +292,7 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
+                        this.lastProgressEvent = 0;
                         prefs = this._savedPreferences;
                         if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 6];
                         return [4 /*yield*/, this._fetchManifest(prefs.availableUpdate.url)];
@@ -317,7 +319,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._downloadFilesFromManifest = function (baseUrl, manifest, versionId, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var size, downloaded, concurrent, beforeDownloadTimer, downloadFile, downloads, _i, manifest_1, entry;
+            var size, downloaded, concurrent, reportProgress, beforeDownloadTimer, downloadFile, downloads, _i, manifest_1, entry;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -328,9 +330,17 @@ var IonicDeployImpl = /** @class */ (function () {
                         manifest.forEach(function (i) {
                             size += i.size;
                         });
+                        reportProgress = function () {
+                            var percentage = Math.floor((downloaded / size) * 100);
+                            if (percentage === _this.lastProgressEvent) {
+                                return;
+                            }
+                            _this.lastProgressEvent = percentage;
+                            progress && progress(percentage);
+                        };
                         beforeDownloadTimer = new Timer('downloadTimer');
                         downloadFile = function (file) { return __awaiter(_this, void 0, void 0, function () {
-                            var base, newUrl, filePath;
+                            var base, newUrl, filePath, bytesLoaded;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
@@ -338,14 +348,17 @@ var IonicDeployImpl = /** @class */ (function () {
                                         newUrl = new URL(file.href, baseUrl);
                                         newUrl.search = base.search;
                                         filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
-                                        return [4 /*yield*/, this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath)];
+                                        return [4 /*yield*/, this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath, function (bytes) {
+                                                if (bytes) {
+                                                    downloaded += bytes;
+                                                    reportProgress();
+                                                }
+                                            })];
                                     case 1:
-                                        _a.sent();
-                                        // Update progress
-                                        downloaded += file.size;
-                                        if (progress) {
-                                            progress(Math.floor((downloaded / size) * 100));
-                                        }
+                                        bytesLoaded = _a.sent();
+                                        // Report download, removing already reported
+                                        downloaded += file.size - bytesLoaded;
+                                        reportProgress();
                                         return [2 /*return*/];
                                 }
                             });
@@ -1091,23 +1104,45 @@ var FileManager = /** @class */ (function () {
             });
         });
     };
-    FileManager.prototype.downloadAndWriteFile = function (url, path) {
+    FileManager.prototype.downloadAndWriteFile = function (url, path, progressFn) {
+        if (progressFn === void 0) { progressFn = function () { return void 0; }; }
         return __awaiter(this, void 0, void 0, function () {
-            var fileT, retries, attempts, tryDownload;
+            var fileT, retries, loaded, attempts, tryDownload;
             return __generator(this, function (_a) {
                 fileT = new FileTransfer();
                 retries = 1;
+                loaded = 0;
                 attempts = 0;
+                // On progress, increment total progress
+                fileT.onprogress = function (progress) {
+                    if (progress.loaded) {
+                        // report only the difference from last time
+                        progressFn(progress.loaded - loaded);
+                        loaded = progress.loaded;
+                    }
+                    else {
+                        // increment by 1 byte to keep progress events flowing
+                        progressFn(1);
+                    }
+                };
                 tryDownload = function () {
                     attempts++;
                     return new Promise(function (resolve, reject) {
                         fileT.download(url, path, function () {
-                            resolve();
+                            resolve(loaded);
                         }, function () {
+                            // trigger progress, removing the previously loaded bytes, then reset loaded
+                            progressFn(-Math.abs(loaded));
+                            loaded = 0;
+                            // Can we retry?
                             if (attempts <= retries) {
                                 tryDownload()
                                     .then(resolve)
                                     .catch(reject);
+                            }
+                            else {
+                                // no more retries remaining...
+                                reject();
                             }
                         });
                     });
