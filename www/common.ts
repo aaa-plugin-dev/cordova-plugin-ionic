@@ -730,20 +730,11 @@ class FileManager {
 
     const tryDownload = (): Promise<void> => {
       attempts++;
-
-      // 100 second per file limit, if this is exceeded then cancel and retry
-      // 900KB @ 128kbit/s = 57 seconds
-      const timeout = setTimeout(() => {
-        fileT.abort();
-      }, 100000);
-
       return new Promise((resolve, reject) => {
         fileT.download(url, path, () => {
-          clearTimeout(timeout);
           resolve();
         }, () => {
           if (attempts <= retries) {
-            clearTimeout(timeout);
             tryDownload()
               .then(resolve)
               .catch(reject);
