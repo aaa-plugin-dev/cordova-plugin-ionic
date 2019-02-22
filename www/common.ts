@@ -11,7 +11,6 @@ channel.waitForInitialization('onIonicProReady');
 
 declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
-declare const WEBVIEW_SERVER_URL: string;
 declare const Capacitor: any;
 
 enum UpdateMethod {
@@ -118,12 +117,19 @@ class IonicDeployImpl {
     return Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId);
   }
 
-  getBundledAppDir(): string {
+  getBundledAppDir(appId?: string): string {
     let folder = 'www';
     if (typeof (Capacitor) !== 'undefined') {
       folder = 'public';
     }
-    return Path.join(cordova.file.applicationDirectory, folder);
+
+    const dir = Path.join(cordova.file.applicationDirectory, folder);
+
+    if (appId) {
+      return Path.join(dir, appId);
+    }
+
+    return dir;
   }
 
   private async _savePrefs(prefs: ISavedPreferences): Promise<ISavedPreferences> {
@@ -216,11 +222,27 @@ class IonicDeployImpl {
     this.lastProgressEvent = 0;
     const prefs = this._savedPreferences;
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
-      const { fileBaseUrl, manifestJson } = await this._fetchManifest(prefs.availableUpdate.url);
-      const diffedManifest = await this._diffManifests(manifestJson);
-      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId, prefs.availableUpdate.url);
+
+      // Async fetch manifest while preparing the update directory
+      const [{ fileBaseUrl, manifestJson }] = await Promise.all([
+        this._fetchManifest(prefs.availableUpdate.url),
+        this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
+      ]);
+
+      // Diff new to snapshot, seperate any we already have
+      const diffedManifest = await this._diffManifests(manifestJson, prefs.availableUpdate.versionId);
+
+      // Download the files
       await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
+
+      // Save new Manifest
+      await this._fileManager.downloadAndWriteFile(
+        prefs.availableUpdate.url,
+        Path.join(this.getSnapshotCacheDir(prefs.availableUpdate.versionId), this.MANIFEST_FILE)
+      );
+
       prefs.availableUpdate.state = UpdateState.Pending;
+
       await this._savePrefs(prefs);
       return true;
     }
@@ -262,7 +284,7 @@ class IonicDeployImpl {
       });
 
       // Report download, removing already reported
-      downloaded += file.size - bytesLoaded;
+      downloaded += (file.size - bytesLoaded);
       reportProgress();
     };
 
@@ -308,28 +330,22 @@ class IonicDeployImpl {
     };
   }
 
-  private async _diffManifests(newManifest: ManifestFileEntry[]) {
+  private async _diffManifests(newManifest: ManifestFileEntry[], versionId: string) {
     try {
-      /*
-      const manifestResp = await fetch(`${WEBVIEW_SERVER_URL}/${this.MANIFEST_FILE}`);
-      const bundledManifest: ManifestFileEntry[] = await manifestResp.json();
-      const bundleManifestStrings = bundledManifest.map(entry => JSON.stringify(entry));
-      return newManifest.filter(entry => bundleManifestStrings.indexOf(JSON.stringify(entry)) === -1);
-      */
-      const oldManifest = await this.getOldManifest();
-      const oldManifestStrings = oldManifest.map(entry => JSON.stringify(entry));
-      const differences = newManifest.filter(entry => oldManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      const snapshotManifest = await this.getSnapshotManifest(versionId);
+      const snapManifestStrings = snapshotManifest.map(entry => JSON.stringify(entry));
+      const differences = newManifest.filter(entry => snapManifestStrings.indexOf(JSON.stringify(entry)) === -1);
       return differences;
     } catch (e) {
       return newManifest;
     }
   }
 
-  private async prepareUpdateDirectory(versionId: string, manifestJsonUrl: string) {
+  private async prepareUpdateDirectory(versionId: string) {
     await this._cleanSnapshotDir(versionId);
     console.log('Cleaned version directory');
 
-    await this._copyBaseAppDir(versionId, manifestJsonUrl);
+    await this._copyBaseAppDir(versionId);
     console.log('Copied base app resources');
   }
 
@@ -365,6 +381,7 @@ class IonicDeployImpl {
       // Are we already running the deployed version?
       if (await this._isRunningVersion(prefs.currentVersionId)) {
         console.log(`Already running version ${prefs.currentVersionId}`);
+        prefs.currentVersionForAppId = prefs.appId;
         await this._savePrefs(prefs);
         channel.onIonicProReady.fire();
         Ionic.WebView.persistServerBasePath();
@@ -444,35 +461,24 @@ class IonicDeployImpl {
     }
   }
 
-  private async _copyBaseAppDir(versionId: string, manifestJsonUrl: string) {
+  private async _copyBaseAppDir(versionId: string) {
     const timer = new Timer('CopyBaseApp');
     return new Promise( async (resolve, reject) => {
       try {
         const prefs = this._savedPreferences;
         const currentVersion = await this.getCurrentVersion();
-        const isBundledApp = await this.isBundledApp();
-
-        console.log('Is running bundled?', isBundledApp);
-        console.log('Current Version: ', currentVersion);
-
-        // After downloading, we need to overwrite the pro-manisfest with the downloaded version, then future
-        // diffs will work. Otherwise, the app might diff against a previous pro-manifest, which will cause files to de-sync.
-        const saveProManifest = async (copyTo: string): Promise<any> => {
-          return await this._fileManager.downloadAndWriteFile(manifestJsonUrl, Path.join(copyTo, 'pro-manifest.json'));
-        };
+        const isDefaultApp = await this.isDefaultApp();
+        const switchingApps = !(currentVersion && prefs.currentVersionForAppId === prefs.appId);
 
         // Bundled? check if has current version, otherwise copy bundled app over
-        const copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+        const copyFrom = !switchingApps
           ? this.getSnapshotCacheDir(<string>this._savedPreferences.currentVersionId)
-          : this.getBundledAppDir();
-
-        console.log('Copying from: ', copyFrom);
+          : (isDefaultApp ? this.getBundledAppDir() : this.getBundledAppDir());
 
         const rootAppDirEntry = await this._fileManager.getDirectory(copyFrom, false);
         const snapshotCacheDirEntry = await this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true);
 
-        rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, async () => {
-          await saveProManifest(Path.join(this.getSnapshotCacheDir(''), versionId));
+        rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, () => {
           timer.end();
           resolve();
         }, reject);
@@ -512,41 +518,8 @@ class IonicDeployImpl {
     };
   }
 
-  /**
-   * Returns the old manifest to diff against.
-   * If the appId is switching from one to another, then this should return the manifest of the bundled app
-   *
-   * @returns {Promise<ManifestFileEntry>}
-   * @memberof IonicDeployImpl
-   */
-  async getOldManifest(): Promise<ManifestFileEntry[]> {
-    if (this._savedPreferences.currentVersionId
-      && this._savedPreferences.currentVersionForAppId === this._savedPreferences.appId
-    ) {
-      return await this.getCurrentVersionManifest();
-    }
-
-    return await this.getBundledManifest();
-  }
-
-  async getCurrentVersionManifest(): Promise<ManifestFileEntry[]> {
-    const currentVersionId = this._savedPreferences.currentVersionId;
-
-    if (!currentVersionId) {
-      return [];
-    }
-
-    return await this.parseManifestFile(
-      this.getSnapshotCacheDir(currentVersionId)
-    );
-  }
-
-  private async getBundledManifest(): Promise<ManifestFileEntry[]> {
-    const resp = await fetch(`${WEBVIEW_SERVER_URL}/${this.MANIFEST_FILE}`, {
-      method: 'GET',
-      redirect: 'follow',
-    });
-    return await resp.json();
+  async getSnapshotManifest(versionId: string): Promise<ManifestFileEntry[]> {
+    return this.parseManifestFile(this.getSnapshotCacheDir(versionId));
   }
 
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
@@ -564,14 +537,8 @@ class IonicDeployImpl {
     return [];
   }
 
-  async isBundledApp(): Promise<boolean> {
-    const resp = await fetch(`${WEBVIEW_SERVER_URL}/manifest.json`, {
-      method: 'GET',
-      redirect: 'follow',
-    });
-    const json = await <{ appId?: string }>resp.json();
-
-    return resp.ok && json && json.appId && json.appId === this._savedPreferences.appId ? true : false;
+  async isDefaultApp(): Promise<boolean> {
+    return Promise.resolve(this._savedPreferences.appId === '5fc6b2fe');
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
@@ -754,8 +721,8 @@ async downloadAndWriteFile(url: string, path: string, progressFn: CallbackFuncti
         progressFn(progress.loaded - loaded);
         loaded = progress.loaded;
       } else {
-        // increment by 1 byte to keep progress events flowing
-        progressFn(1);
+        // increment by 100 byte to keep progress events flowing
+        progressFn(100);
       }
     };
 

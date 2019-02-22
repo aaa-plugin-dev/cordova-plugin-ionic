@@ -157,12 +157,16 @@ var IonicDeployImpl = /** @class */ (function () {
     IonicDeployImpl.prototype.getSnapshotCacheDir = function (versionId) {
         return Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId);
     };
-    IonicDeployImpl.prototype.getBundledAppDir = function () {
+    IonicDeployImpl.prototype.getBundledAppDir = function (appId) {
         var folder = 'www';
         if (typeof (Capacitor) !== 'undefined') {
             folder = 'public';
         }
-        return Path.join(cordova.file.applicationDirectory, folder);
+        var dir = Path.join(cordova.file.applicationDirectory, folder);
+        if (appId) {
+            return Path.join(dir, appId);
+        }
+        return dir;
     };
     IonicDeployImpl.prototype._savePrefs = function (prefs) {
         return __awaiter(this, void 0, void 0, function () {
@@ -295,17 +299,24 @@ var IonicDeployImpl = /** @class */ (function () {
                         this.lastProgressEvent = 0;
                         prefs = this._savedPreferences;
                         if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 6];
-                        return [4 /*yield*/, this._fetchManifest(prefs.availableUpdate.url)];
+                        return [4 /*yield*/, Promise.all([
+                                this._fetchManifest(prefs.availableUpdate.url),
+                                this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
+                            ])];
                     case 1:
-                        _a = _b.sent(), fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
-                        return [4 /*yield*/, this._diffManifests(manifestJson)];
+                        _a = (_b.sent())[0], fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
+                        return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
                     case 2:
                         diffedManifest = _b.sent();
-                        return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId, prefs.availableUpdate.url)];
-                    case 3:
-                        _b.sent();
+                        // Download the files
                         return [4 /*yield*/, this._downloadFilesFromManifest(fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
+                    case 3:
+                        // Download the files
+                        _b.sent();
+                        // Save new Manifest
+                        return [4 /*yield*/, this._fileManager.downloadAndWriteFile(prefs.availableUpdate.url, Path.join(this.getSnapshotCacheDir(prefs.availableUpdate.versionId), this.MANIFEST_FILE))];
                     case 4:
+                        // Save new Manifest
                         _b.sent();
                         prefs.availableUpdate.state = UpdateState.Pending;
                         return [4 /*yield*/, this._savePrefs(prefs)];
@@ -357,7 +368,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                     case 1:
                                         bytesLoaded = _a.sent();
                                         // Report download, removing already reported
-                                        downloaded += file.size - bytesLoaded;
+                                        downloaded += (file.size - bytesLoaded);
                                         reportProgress();
                                         return [2 /*return*/];
                                 }
@@ -449,18 +460,18 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype._diffManifests = function (newManifest) {
+    IonicDeployImpl.prototype._diffManifests = function (newManifest, versionId) {
         return __awaiter(this, void 0, void 0, function () {
-            var oldManifest, oldManifestStrings_1, differences, e_2;
+            var snapshotManifest, snapManifestStrings_1, differences, e_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         _a.trys.push([0, 2, , 3]);
-                        return [4 /*yield*/, this.getOldManifest()];
+                        return [4 /*yield*/, this.getSnapshotManifest(versionId)];
                     case 1:
-                        oldManifest = _a.sent();
-                        oldManifestStrings_1 = oldManifest.map(function (entry) { return JSON.stringify(entry); });
-                        differences = newManifest.filter(function (entry) { return oldManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; });
+                        snapshotManifest = _a.sent();
+                        snapManifestStrings_1 = snapshotManifest.map(function (entry) { return JSON.stringify(entry); });
+                        differences = newManifest.filter(function (entry) { return snapManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; });
                         return [2 /*return*/, differences];
                     case 2:
                         e_2 = _a.sent();
@@ -470,7 +481,7 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype.prepareUpdateDirectory = function (versionId, manifestJsonUrl) {
+    IonicDeployImpl.prototype.prepareUpdateDirectory = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
@@ -478,7 +489,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         console.log('Cleaned version directory');
-                        return [4 /*yield*/, this._copyBaseAppDir(versionId, manifestJsonUrl)];
+                        return [4 /*yield*/, this._copyBaseAppDir(versionId)];
                     case 2:
                         _a.sent();
                         console.log('Copied base app resources');
@@ -531,6 +542,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 3:
                         if (!_a.sent()) return [3 /*break*/, 6];
                         console.log("Already running version " + prefs.currentVersionId);
+                        prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 4:
                         _a.sent();
@@ -642,15 +654,14 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype._copyBaseAppDir = function (versionId, manifestJsonUrl) {
+    IonicDeployImpl.prototype._copyBaseAppDir = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
             var timer;
             var _this = this;
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var prefs, currentVersion, isBundledApp, saveProManifest_1, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
-                        var _this = this;
+                        var prefs, currentVersion, isDefaultApp, switchingApps, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
@@ -659,41 +670,23 @@ var IonicDeployImpl = /** @class */ (function () {
                                     return [4 /*yield*/, this.getCurrentVersion()];
                                 case 1:
                                     currentVersion = _a.sent();
-                                    return [4 /*yield*/, this.isBundledApp()];
+                                    return [4 /*yield*/, this.isDefaultApp()];
                                 case 2:
-                                    isBundledApp = _a.sent();
-                                    console.log('Is running bundled?', isBundledApp);
-                                    console.log('Current Version: ', currentVersion);
-                                    saveProManifest_1 = function (copyTo) { return __awaiter(_this, void 0, void 0, function () {
-                                        return __generator(this, function (_a) {
-                                            switch (_a.label) {
-                                                case 0: return [4 /*yield*/, this._fileManager.downloadAndWriteFile(manifestJsonUrl, Path.join(copyTo, 'pro-manifest.json'))];
-                                                case 1: return [2 /*return*/, _a.sent()];
-                                            }
-                                        });
-                                    }); };
-                                    copyFrom = (currentVersion && prefs.currentVersionForAppId === prefs.appId)
+                                    isDefaultApp = _a.sent();
+                                    switchingApps = !(currentVersion && prefs.currentVersionForAppId === prefs.appId);
+                                    copyFrom = !switchingApps
                                         ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
-                                        : this.getBundledAppDir();
-                                    console.log('Copying from: ', copyFrom);
+                                        : (isDefaultApp ? this.getBundledAppDir() : this.getBundledAppDir());
                                     return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
                                 case 3:
                                     rootAppDirEntry = _a.sent();
                                     return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
                                 case 4:
                                     snapshotCacheDirEntry = _a.sent();
-                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () { return __awaiter(_this, void 0, void 0, function () {
-                                        return __generator(this, function (_a) {
-                                            switch (_a.label) {
-                                                case 0: return [4 /*yield*/, saveProManifest_1(Path.join(this.getSnapshotCacheDir(''), versionId))];
-                                                case 1:
-                                                    _a.sent();
-                                                    timer.end();
-                                                    resolve();
-                                                    return [2 /*return*/];
-                                            }
-                                        });
-                                    }); }, reject);
+                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, versionId, function () {
+                                        timer.end();
+                                        resolve();
+                                    }, reject);
                                     return [3 /*break*/, 6];
                                 case 5:
                                     e_4 = _a.sent();
@@ -741,58 +734,10 @@ var IonicDeployImpl = /** @class */ (function () {
             binaryVersionName: update.binaryVersionName
         };
     };
-    /**
-     * Returns the old manifest to diff against.
-     * If the appId is switching from one to another, then this should return the manifest of the bundled app
-     *
-     * @returns {Promise<ManifestFileEntry>}
-     * @memberof IonicDeployImpl
-     */
-    IonicDeployImpl.prototype.getOldManifest = function () {
+    IonicDeployImpl.prototype.getSnapshotManifest = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (!(this._savedPreferences.currentVersionId
-                            && this._savedPreferences.currentVersionForAppId === this._savedPreferences.appId)) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this.getCurrentVersionManifest()];
-                    case 1: return [2 /*return*/, _a.sent()];
-                    case 2: return [4 /*yield*/, this.getBundledManifest()];
-                    case 3: return [2 /*return*/, _a.sent()];
-                }
-            });
-        });
-    };
-    IonicDeployImpl.prototype.getCurrentVersionManifest = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var currentVersionId;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        currentVersionId = this._savedPreferences.currentVersionId;
-                        if (!currentVersionId) {
-                            return [2 /*return*/, []];
-                        }
-                        return [4 /*yield*/, this.parseManifestFile(this.getSnapshotCacheDir(currentVersionId))];
-                    case 1: return [2 /*return*/, _a.sent()];
-                }
-            });
-        });
-    };
-    IonicDeployImpl.prototype.getBundledManifest = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var resp;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, fetch(WEBVIEW_SERVER_URL + "/" + this.MANIFEST_FILE, {
-                            method: 'GET',
-                            redirect: 'follow',
-                        })];
-                    case 1:
-                        resp = _a.sent();
-                        return [4 /*yield*/, resp.json()];
-                    case 2: return [2 /*return*/, _a.sent()];
-                }
+                return [2 /*return*/, this.parseManifestFile(this.getSnapshotCacheDir(versionId))];
             });
         });
     };
@@ -816,22 +761,10 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype.isBundledApp = function () {
+    IonicDeployImpl.prototype.isDefaultApp = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var resp, json;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, fetch(WEBVIEW_SERVER_URL + "/manifest.json", {
-                            method: 'GET',
-                            redirect: 'follow',
-                        })];
-                    case 1:
-                        resp = _a.sent();
-                        return [4 /*yield*/, resp.json()];
-                    case 2:
-                        json = _a.sent();
-                        return [2 /*return*/, resp.ok && json && json.appId && json.appId === this._savedPreferences.appId ? true : false];
-                }
+                return [2 /*return*/, Promise.resolve(this._savedPreferences.appId === '5fc6b2fe')];
             });
         });
     };
@@ -1121,8 +1054,8 @@ var FileManager = /** @class */ (function () {
                         loaded = progress.loaded;
                     }
                     else {
-                        // increment by 1 byte to keep progress events flowing
-                        progressFn(1);
+                        // increment by 100 byte to keep progress events flowing
+                        progressFn(100);
                     }
                 };
                 tryDownload = function () {
