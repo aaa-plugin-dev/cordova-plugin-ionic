@@ -429,42 +429,41 @@ class IonicDeployImpl {
 
         // We need to ensure some plugins and other files are copied from bundled to snapshot
         // this ensure plugins js are not out of date.
-        const directories = [
-          'plugins',
-          'cordova-js',
-          'tasks',
-        ];
-
-        const files = [
-          'cordova_plugins.js',
-          'cordova.js',
-        ];
-
         const snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
 
         // Copy directories over, existing are removed first
-        await Promise.all(directories.map(async (dir) => {
+        [ 'plugins',
+          'cordova-js',
+          'tasks',
+        ].forEach(async (dir) => {
           return await this._fileManager.copyDirectory(
             Path.join(this.getBundledAppDir(), dir),
             snapshotDirectory,
             dir
           );
-        }));
+        });
 
         // do the same for files
-        await Promise.all(files.map(async (file) => {
+        [ 'cordova_plugins.js',
+          'cordova.js',
+        ].forEach(async (file) => {
           try {
             await this._fileManager.removeFile(snapshotDirectory, file);
           } catch (err) {
             // its ok if we can't delete a file
           }
+
           return await this._fileManager.copyTo(this.getBundledAppDir(), file, snapshotDirectory, file);
-        }));
+        });
 
         // platform specific
         if (this.appInfo.platform === 'ios') {
-          await this._fileManager.removeFile(snapshotDirectory, 'wk-plugin.js');
-          this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js');
+          try {
+            await this._fileManager.removeFile(snapshotDirectory, 'wk-plugin.js');
+            this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js');
+          } catch (err) {
+            // its ok...
+          }
         }
       }
     }

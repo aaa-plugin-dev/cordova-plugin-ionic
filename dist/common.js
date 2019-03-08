@@ -584,7 +584,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanCurrentVersionIfStale = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, directories, files, snapshotDirectory_1;
+            var prefs, _a, snapshotDirectory_1, err_1;
             var _this = this;
             return __generator(this, function (_b) {
                 switch (_b.label) {
@@ -602,56 +602,52 @@ var IonicDeployImpl = /** @class */ (function () {
                         console.log("Update " + prefs.currentVersionId + " was built for different binary version removing update from device" +
                             ("Update binaryVersionName: " + prefs.updates[prefs.currentVersionId].binaryVersionName + ", Device binaryVersionName " + prefs.binaryVersionName) +
                             ("Update binaryVersionCode: " + prefs.updates[prefs.currentVersionId].binaryVersionCode + ", Device binaryVersionCode " + prefs.binaryVersionCode));
-                        directories = [
-                            'plugins',
-                            'cordova-js',
-                            'tasks',
-                        ];
-                        files = [
-                            'cordova_plugins.js',
-                            'cordova.js',
-                        ];
                         snapshotDirectory_1 = this.getSnapshotCacheDir(prefs.currentVersionId);
                         // Copy directories over, existing are removed first
-                        return [4 /*yield*/, Promise.all(directories.map(function (dir) { return __awaiter(_this, void 0, void 0, function () {
-                                return __generator(this, function (_a) {
-                                    switch (_a.label) {
-                                        case 0: return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(this.getBundledAppDir(), dir), snapshotDirectory_1, dir)];
-                                        case 1: return [2 /*return*/, _a.sent()];
-                                    }
-                                });
-                            }); }))];
-                    case 3:
-                        // Copy directories over, existing are removed first
-                        _b.sent();
+                        ['plugins',
+                            'cordova-js',
+                            'tasks',
+                        ].forEach(function (dir) { return __awaiter(_this, void 0, void 0, function () {
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0: return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(this.getBundledAppDir(), dir), snapshotDirectory_1, dir)];
+                                    case 1: return [2 /*return*/, _a.sent()];
+                                }
+                            });
+                        }); });
                         // do the same for files
-                        return [4 /*yield*/, Promise.all(files.map(function (file) { return __awaiter(_this, void 0, void 0, function () {
-                                var err_1;
-                                return __generator(this, function (_a) {
-                                    switch (_a.label) {
-                                        case 0:
-                                            _a.trys.push([0, 2, , 3]);
-                                            return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory_1, file)];
-                                        case 1:
-                                            _a.sent();
-                                            return [3 /*break*/, 3];
-                                        case 2:
-                                            err_1 = _a.sent();
-                                            return [3 /*break*/, 3];
-                                        case 3: return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), file, snapshotDirectory_1, file)];
-                                        case 4: return [2 /*return*/, _a.sent()];
-                                    }
-                                });
-                            }); }))];
-                    case 4:
-                        // do the same for files
-                        _b.sent();
+                        ['cordova_plugins.js',
+                            'cordova.js',
+                        ].forEach(function (file) { return __awaiter(_this, void 0, void 0, function () {
+                            var err_2;
+                            return __generator(this, function (_a) {
+                                switch (_a.label) {
+                                    case 0:
+                                        _a.trys.push([0, 2, , 3]);
+                                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory_1, file)];
+                                    case 1:
+                                        _a.sent();
+                                        return [3 /*break*/, 3];
+                                    case 2:
+                                        err_2 = _a.sent();
+                                        return [3 /*break*/, 3];
+                                    case 3: return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), file, snapshotDirectory_1, file)];
+                                    case 4: return [2 /*return*/, _a.sent()];
+                                }
+                            });
+                        }); });
                         if (!(this.appInfo.platform === 'ios')) return [3 /*break*/, 6];
+                        _b.label = 3;
+                    case 3:
+                        _b.trys.push([3, 5, , 6]);
                         return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory_1, 'wk-plugin.js')];
-                    case 5:
+                    case 4:
                         _b.sent();
                         this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory_1, 'wk-plugin.js');
-                        _b.label = 6;
+                        return [3 /*break*/, 6];
+                    case 5:
+                        err_1 = _b.sent();
+                        return [3 /*break*/, 6];
                     case 6: return [2 /*return*/];
                 }
             });
