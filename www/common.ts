@@ -71,8 +71,8 @@ class IonicDeployImpl {
   }
 
   async _handleInitialPreferenceState() {
-    // make sure we're not going to redirect to a stale version
-    // await this.cleanCurrentVersionIfStale();
+    // make sure we update cordova plugins from bundled > deployed app
+    await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
       console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
@@ -407,15 +407,15 @@ class IonicDeployImpl {
   }
 
   // compare an update to the current version using both name & code
-  /*private isCurrentVersion(update: IAvailableUpdate) {
+  private isCurrentVersion(update: IAvailableUpdate) {
     const currentVersionCode = this._savedPreferences.binaryVersionCode;
     const currentVersionName = this._savedPreferences.binaryVersionName;
     console.log(`Current: versionCode: ${currentVersionCode} versionName: ${currentVersionName}`);
     console.log(`update: versionCode: ${update.binaryVersionCode} versionName: ${update.binaryVersionName}`);
     return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
-  }*/
+  }
 
-  /*private async cleanCurrentVersionIfStale() {
+  private async cleanCurrentVersionIfStale() {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
@@ -425,13 +425,50 @@ class IonicDeployImpl {
           `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
           `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
         );
-        const versionId = prefs.currentVersionId;
-        // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
-        delete prefs.currentVersionId;
-        await this.deleteVersionById(versionId);
+
+
+        // We need to ensure some plugins and other files are copied from bundled to snapshot
+        // this ensure plugins js are not out of date.
+        const directories = [
+          'plugins',
+          'cordova-js',
+          'tasks',
+        ];
+
+        const files = [
+          'cordova_plugins.js',
+          'cordova.js',
+        ];
+
+        const snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
+
+        // Copy directories over, existing are removed first
+        await Promise.all(directories.map(async (dir) => {
+          return await this._fileManager.copyDirectory(
+            Path.join(this.getBundledAppDir(), dir),
+            snapshotDirectory,
+            dir
+          );
+        }));
+
+        // do the same for files
+        await Promise.all(files.map(async (file) => {
+          try {
+            await this._fileManager.removeFile(snapshotDirectory, file);
+          } catch (err) {
+            // its ok if we can't delete a file
+          }
+          return await this._fileManager.copyTo(this.getBundledAppDir(), file, snapshotDirectory, file);
+        }));
+
+        // platform specific
+        if (this.appInfo.platform === 'ios') {
+          await this._fileManager.removeFile(snapshotDirectory, 'wk-plugin.js');
+          this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js');
+        }
       }
     }
-  }*/
+  }
 
   private async _isRunningVersion(versionId: string) {
     const currentPath = await this._getServerBasePath();
@@ -708,7 +745,23 @@ class FileManager {
     });
   }
 
-async downloadAndWriteFile(url: string, path: string, progressFn: CallbackFunction<number> = () => void 0): Promise<number> {
+  async removeDir(dir: string) {
+    const dirEntry = await this.getDirectory(dir);
+    return new Promise((resolve, reject) => {
+      dirEntry.removeRecursively(resolve, reject);
+    });
+  }
+
+  async copyDirectory(from: string, to: string, fileName: string) {
+    await this.removeDir(to);
+    const fromEntry = await this.getDirectory(from);
+    const toEntry = await this.getDirectory(to);
+    return new Promise((resolve, reject) => {
+      fromEntry.copyTo(toEntry, fileName, resolve, reject);
+    });
+  }
+
+  async downloadAndWriteFile(url: string, path: string, progressFn: CallbackFunction<number> = () => void 0): Promise<number> {
     const fileT = new FileTransfer();
     const retries = 1;
     let loaded = 0;
