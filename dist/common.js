@@ -94,12 +94,7 @@ var IonicDeployImpl = /** @class */ (function () {
             var isOnline, updateMethod, _a, e_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: 
-                    // make sure we update cordova plugins from bundled > deployed app
-                    return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
-                    case 1:
-                        // make sure we update cordova plugins from bundled > deployed app
-                        _b.sent();
+                    case 0:
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
@@ -109,41 +104,41 @@ var IonicDeployImpl = /** @class */ (function () {
                         updateMethod = this._savedPreferences.updateMethod;
                         _a = updateMethod;
                         switch (_a) {
-                            case UpdateMethod.AUTO: return [3 /*break*/, 2];
-                            case UpdateMethod.NONE: return [3 /*break*/, 8];
+                            case UpdateMethod.AUTO: return [3 /*break*/, 1];
+                            case UpdateMethod.NONE: return [3 /*break*/, 7];
                         }
-                        return [3 /*break*/, 9];
-                    case 2:
+                        return [3 /*break*/, 8];
+                    case 1:
                         // NOTE: call sync with background as override to avoid sync
                         // reloading the app and manually reload always once sync has
                         // set the correct currentVersionId
                         console.log('calling _sync');
-                        _b.label = 3;
-                    case 3:
-                        _b.trys.push([3, 5, , 6]);
+                        _b.label = 2;
+                    case 2:
+                        _b.trys.push([2, 4, , 5]);
                         return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND })];
-                    case 4:
+                    case 3:
                         _b.sent();
-                        return [3 /*break*/, 6];
-                    case 5:
+                        return [3 /*break*/, 5];
+                    case 4:
                         e_1 = _b.sent();
                         console.warn(e_1);
                         console.warn('Sync failed. Defaulting to last available version.');
-                        return [3 /*break*/, 6];
-                    case 6:
+                        return [3 /*break*/, 5];
+                    case 5:
                         console.log('calling _reload');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 7:
+                    case 6:
                         _b.sent();
                         console.log('done _reloading');
-                        return [3 /*break*/, 11];
-                    case 8:
+                        return [3 /*break*/, 10];
+                    case 7:
                         this.reloadApp();
-                        return [3 /*break*/, 11];
-                    case 9: 
+                        return [3 /*break*/, 10];
+                    case 8: 
                     // NOTE: default anything that doesn't explicitly match to background updates
                     return [4 /*yield*/, this.reloadApp()];
-                    case 10:
+                    case 9:
                         // NOTE: default anything that doesn't explicitly match to background updates
                         _b.sent();
                         try {
@@ -154,7 +149,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             console.warn('Background sync failed. Unable to check for new updates.');
                         }
                         return [2 /*return*/];
-                    case 11: return [2 /*return*/];
+                    case 10: return [2 /*return*/];
                 }
             });
         });
@@ -541,23 +536,28 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         _a.label = 2;
-                    case 2:
-                        if (!prefs.currentVersionId) return [3 /*break*/, 7];
-                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
+                    case 2: 
+                    // Clean current version if its stale
+                    return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
                     case 3:
-                        if (!_a.sent()) return [3 /*break*/, 6];
+                        // Clean current version if its stale
+                        _a.sent();
+                        if (!prefs.currentVersionId) return [3 /*break*/, 8];
+                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
+                    case 4:
+                        if (!_a.sent()) return [3 /*break*/, 7];
                         console.log("Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 4:
+                    case 5:
                         _a.sent();
                         channel.onIonicProReady.fire();
                         Ionic.WebView.persistServerBasePath();
                         return [4 /*yield*/, this.cleanupVersions()];
-                    case 5:
+                    case 6:
                         _a.sent();
                         return [2 /*return*/, false];
-                    case 6:
+                    case 7:
                         // Is the current version on the device?
                         if (!(prefs.currentVersionId in prefs.updates)) {
                             console.error("Missing version " + prefs.currentVersionId);
@@ -567,7 +567,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         newLocation = new URL(this.getSnapshotCacheDir(prefs.currentVersionId));
                         Ionic.WebView.setServerBasePath(newLocation.pathname);
                         return [2 /*return*/, true];
-                    case 7:
+                    case 8:
                         channel.onIonicProReady.fire();
                         return [2 /*return*/, false];
                 }
@@ -584,71 +584,70 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanCurrentVersionIfStale = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, snapshotDirectory_1, err_1;
-            var _this = this;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            var prefs, snapshotDirectory, bundledAppDir, err_1;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.currentVersionId) return [3 /*break*/, 6];
-                        _a = !this.isCurrentVersion(prefs.updates[prefs.currentVersionId]);
-                        if (!_a) return [3 /*break*/, 2];
-                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
-                    case 1:
-                        _a = !(_b.sent());
-                        _b.label = 2;
-                    case 2:
-                        if (!_a) return [3 /*break*/, 6];
-                        console.log("Update " + prefs.currentVersionId + " was built for different binary version removing update from device" +
+                        if (!prefs.currentVersionId) return [3 /*break*/, 15];
+                        if (!!this.isCurrentVersion(prefs.updates[prefs.currentVersionId])) return [3 /*break*/, 15];
+                        console.log("Update " + prefs.currentVersionId + " was built for different binary version, updating cordova assets..." +
                             ("Update binaryVersionName: " + prefs.updates[prefs.currentVersionId].binaryVersionName + ", Device binaryVersionName " + prefs.binaryVersionName) +
                             ("Update binaryVersionCode: " + prefs.updates[prefs.currentVersionId].binaryVersionCode + ", Device binaryVersionCode " + prefs.binaryVersionCode));
-                        snapshotDirectory_1 = this.getSnapshotCacheDir(prefs.currentVersionId);
-                        // Copy directories over, existing are removed first
-                        ['plugins',
-                            'cordova-js',
-                            'tasks',
-                        ].forEach(function (dir) { return __awaiter(_this, void 0, void 0, function () {
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0: return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(this.getBundledAppDir(), dir), snapshotDirectory_1, dir)];
-                                    case 1: return [2 /*return*/, _a.sent()];
-                                }
-                            });
-                        }); });
-                        // do the same for files
-                        ['cordova_plugins.js',
-                            'cordova.js',
-                        ].forEach(function (file) { return __awaiter(_this, void 0, void 0, function () {
-                            var err_2;
-                            return __generator(this, function (_a) {
-                                switch (_a.label) {
-                                    case 0:
-                                        _a.trys.push([0, 2, , 3]);
-                                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory_1, file)];
-                                    case 1:
-                                        _a.sent();
-                                        return [3 /*break*/, 3];
-                                    case 2:
-                                        err_2 = _a.sent();
-                                        return [3 /*break*/, 3];
-                                    case 3: return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), file, snapshotDirectory_1, file)];
-                                    case 4: return [2 /*return*/, _a.sent()];
-                                }
-                            });
-                        }); });
-                        if (!(this.appInfo.platform === 'ios')) return [3 /*break*/, 6];
-                        _b.label = 3;
+                        console.log('Ionic: Cleaning stale assets...');
+                        snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
+                        bundledAppDir = this.getBundledAppDir();
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 12, , 13]);
+                        // Copy directories over (they are removed first)
+                        console.log('Ionic: Copying cordova directories...');
+                        return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(bundledAppDir, 'plugins'), snapshotDirectory, 'plugins')];
+                    case 2:
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(bundledAppDir, 'cordova-js-src'), snapshotDirectory, 'cordova-js-src')];
                     case 3:
-                        _b.trys.push([3, 5, , 6]);
-                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory_1, 'wk-plugin.js')];
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.copyDirectory(Path.join(bundledAppDir, 'task'), snapshotDirectory, 'task')];
                     case 4:
-                        _b.sent();
-                        this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory_1, 'wk-plugin.js');
-                        return [3 /*break*/, 6];
+                        _a.sent();
+                        // Copy files over
+                        console.log('Ionic: Copying cordova files...');
+                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory, 'cordova.js')];
                     case 5:
-                        err_1 = _b.sent();
-                        return [3 /*break*/, 6];
-                    case 6: return [2 /*return*/];
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory, 'cordova_plugins.js')];
+                    case 6:
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), 'cordova.js', snapshotDirectory, 'cordova.js')];
+                    case 7:
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), 'cordova_plugins.js', snapshotDirectory, 'cordova_plugins.js')];
+                    case 8:
+                        _a.sent();
+                        if (!(this.appInfo.platform === 'ios')) return [3 /*break*/, 11];
+                        console.log('Ionic: Copying ios specific files...');
+                        return [4 /*yield*/, this._fileManager.removeFile(snapshotDirectory, 'wk-plugin.js')];
+                    case 9:
+                        _a.sent();
+                        return [4 /*yield*/, this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js')];
+                    case 10:
+                        _a.sent();
+                        _a.label = 11;
+                    case 11: return [3 /*break*/, 13];
+                    case 12:
+                        err_1 = _a.sent();
+                        console.log(err_1);
+                        return [3 /*break*/, 13];
+                    case 13:
+                        // Switch the updates binary version name
+                        prefs.updates[prefs.currentVersionId].binaryVersionName = prefs.binaryVersionName;
+                        prefs.updates[prefs.currentVersionId].binaryVersionCode = prefs.binaryVersionCode;
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 14: 
+                    // Save prefs to stop this happening again
+                    return [2 /*return*/, _a.sent()];
+                    case 15: return [2 /*return*/];
                 }
             });
         });
@@ -1075,6 +1074,7 @@ var FileManager = /** @class */ (function () {
                     case 2:
                         newDirEntry = _a.sent();
                         return [2 /*return*/, new Promise(function (resolve, reject) {
+                                console.log("Copying file '" + oldPath + "', '" + oldFileName + "', '" + newPath + "', " + newFileName);
                                 fileEntry.copyTo(newDirEntry, newFileName, resolve, reject);
                             })];
                 }
@@ -1090,6 +1090,7 @@ var FileManager = /** @class */ (function () {
                     case 1:
                         fileEntry = _a.sent();
                         return [2 /*return*/, new Promise(function (resolve, reject) {
+                                console.log("Removing file '" + path + "', '" + filename);
                                 fileEntry.remove(resolve, reject);
                             })];
                 }
@@ -1105,18 +1106,19 @@ var FileManager = /** @class */ (function () {
                     case 1:
                         dirEntry = _a.sent();
                         return [2 /*return*/, new Promise(function (resolve, reject) {
+                                console.log("Removing Directory " + dir);
                                 dirEntry.removeRecursively(resolve, reject);
                             })];
                 }
             });
         });
     };
-    FileManager.prototype.copyDirectory = function (from, to, fileName) {
+    FileManager.prototype.copyDirectory = function (from, to, dirName) {
         return __awaiter(this, void 0, void 0, function () {
             var fromEntry, toEntry;
             return __generator(this, function (_a) {
                 switch (_a.label) {
-                    case 0: return [4 /*yield*/, this.removeDir(to)];
+                    case 0: return [4 /*yield*/, this.removeDir(Path.join(to, dirName))];
                     case 1:
                         _a.sent();
                         return [4 /*yield*/, this.getDirectory(from)];
@@ -1126,7 +1128,8 @@ var FileManager = /** @class */ (function () {
                     case 3:
                         toEntry = _a.sent();
                         return [2 /*return*/, new Promise(function (resolve, reject) {
-                                fromEntry.copyTo(toEntry, fileName, resolve, reject);
+                                console.log("Copying Directory '" + from + "', '" + to + "', '" + dirName);
+                                fromEntry.copyTo(toEntry, dirName, resolve, reject);
                             })];
                 }
             });
@@ -1186,6 +1189,7 @@ var IonicDeploy = /** @class */ (function () {
         this.lastPause = 0;
         this.minBackgroundDuration = 10;
         this.disabled = false;
+        this.supportsPartialNativeUpdates = true;
         this.parent = parent;
         this.delegate = this.initialize();
         this.fetchIsAvailable = typeof (fetch) === 'function';
