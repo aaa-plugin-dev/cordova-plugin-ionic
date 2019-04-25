@@ -159,7 +159,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.getBundledAppDir = function (appId) {
         var folder = 'www';
-        if (typeof (Capacitor) !== 'undefined') {
+        if (typeof Capacitor !== 'undefined') {
             folder = 'public';
         }
         var dir = Path.join(cordova.file.applicationDirectory, folder);
@@ -224,14 +224,47 @@ var IonicDeployImpl = /** @class */ (function () {
                         }
                         prefs = this._savedPreferences;
                         appInfo = this.appInfo;
+                        // check if apoplicaiton switch to reference app
+                        // if so copy bundle file over
+                        // skip download
+                        // reloadApp()
+                        prefs.switchToReference =
+                            prefs.currentVersionId !== undefined &&
+                                prefs.currentVersionForAppId !== prefs.appId &&
+                                prefs.appId === '5fc6b2fe';
+                        console.log('checkForUpdate: ' + JSON.stringify(prefs));
+                        if (!prefs.switchToReference) return [3 /*break*/, 2];
+                        delete prefs.availableUpdate;
+                        prefs.currentVersionId = 'bundle';
+                        prefs.currentVersionForAppId = '5fc6b2fe';
+                        prefs.updates['bundle'] = {
+                            binaryVersionCode: prefs.binaryVersionCode,
+                            binaryVersionName: prefs.binaryVersionName,
+                            channel: prefs.channel,
+                            state: 'ready',
+                            lastUsed: '',
+                            url: '',
+                            versionId: 'bundle'
+                        };
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 1:
+                        _d.sent();
+                        return [2 /*return*/, {
+                                available: true,
+                                compatible: false,
+                                partial: false
+                            }];
+                    case 2:
                         endpoint = prefs.host + "/apps/" + prefs.appId + "/channels/check-device";
                         device_details = {
                             binary_version: prefs.binaryVersionName,
                             device_id: appInfo.device || null,
                             platform: appInfo.platform,
-                            platform_version: appInfo.platformVersion,
-                            snapshot: prefs.currentVersionId
+                            platform_version: appInfo.platformVersion
                         };
+                        if (prefs.currentVersionId && prefs.currentVersionId !== 'bundle') {
+                            device_details.snapshot = prefs.currentVersionId;
+                        }
                         body = {
                             channel_name: prefs.channel,
                             app_id: prefs.appId,
@@ -250,17 +283,18 @@ var IonicDeployImpl = /** @class */ (function () {
                             body: JSON.stringify(body)
                         });
                         return [4 /*yield*/, Promise.race([timeout, request])];
-                    case 1:
-                        resp = _d.sent();
-                        if (!(resp.status < 500)) return [3 /*break*/, 3];
-                        return [4 /*yield*/, resp.json()];
-                    case 2:
-                        jsonResp = _d.sent();
-                        _d.label = 3;
                     case 3:
-                        if (!resp.ok) return [3 /*break*/, 6];
+                        resp = _d.sent();
+                        jsonResp = void 0;
+                        if (!(resp.status < 500)) return [3 /*break*/, 5];
+                        return [4 /*yield*/, resp.json()];
+                    case 4:
+                        jsonResp = _d.sent();
+                        _d.label = 5;
+                    case 5:
+                        if (!resp.ok) return [3 /*break*/, 8];
                         checkDeviceResp = jsonResp.data;
-                        if (!(checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot)) return [3 /*break*/, 5];
+                        if (!(checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot)) return [3 /*break*/, 7];
                         prefs.availableUpdate = {
                             binaryVersionCode: prefs.binaryVersionCode,
                             binaryVersionName: prefs.binaryVersionName,
@@ -271,21 +305,21 @@ var IonicDeployImpl = /** @class */ (function () {
                             versionId: checkDeviceResp.snapshot
                         };
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 4:
-                        _d.sent();
-                        _d.label = 5;
-                    case 5: return [2 /*return*/, checkDeviceResp];
                     case 6:
+                        _d.sent();
+                        _d.label = 7;
+                    case 7: return [2 /*return*/, checkDeviceResp];
+                    case 8:
                         _a = Error.bind;
                         _b = "Error Status " + resp.status + ": ";
-                        if (!jsonResp) return [3 /*break*/, 7];
+                        if (!jsonResp) return [3 /*break*/, 9];
                         _c = jsonResp.error.message;
-                        return [3 /*break*/, 9];
-                    case 7: return [4 /*yield*/, resp.text()];
-                    case 8:
+                        return [3 /*break*/, 11];
+                    case 9: return [4 /*yield*/, resp.text()];
+                    case 10:
                         _c = _d.sent();
-                        _d.label = 9;
-                    case 9: throw new (_a.apply(Error, [void 0, _b + (_c)]))();
+                        _d.label = 11;
+                    case 11: throw new (_a.apply(Error, [void 0, _b + (_c)]))();
                 }
             });
         });
@@ -298,32 +332,40 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 0:
                         this.lastProgressEvent = 0;
                         prefs = this._savedPreferences;
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 6];
+                        if (!prefs.switchToReference) return [3 /*break*/, 2];
+                        // it is an application switch, in this case we don't download anything
+                        return [4 /*yield*/, this._copyBundleToSnapshot()];
+                    case 1:
+                        // it is an application switch, in this case we don't download anything
+                        _b.sent();
+                        return [2 /*return*/, true];
+                    case 2:
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 8];
                         return [4 /*yield*/, Promise.all([
                                 this._fetchManifest(prefs.availableUpdate.url),
                                 this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
                             ])];
-                    case 1:
+                    case 3:
                         _a = (_b.sent())[0], fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
                         return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
-                    case 2:
+                    case 4:
                         diffedManifest = _b.sent();
                         // Download the files
                         return [4 /*yield*/, this._downloadFilesFromManifest(fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
-                    case 3:
+                    case 5:
                         // Download the files
                         _b.sent();
                         // Save new Manifest
                         return [4 /*yield*/, this._fileManager.downloadAndWriteFile(prefs.availableUpdate.url, Path.join(this.getSnapshotCacheDir(prefs.availableUpdate.versionId), this.MANIFEST_FILE))];
-                    case 4:
+                    case 6:
                         // Save new Manifest
                         _b.sent();
                         prefs.availableUpdate.state = UpdateState.Pending;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 5:
+                    case 7:
                         _b.sent();
                         return [2 /*return*/, true];
-                    case 6: return [2 /*return*/, false];
+                    case 8: return [2 /*return*/, false];
                 }
             });
         });
@@ -368,7 +410,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                     case 1:
                                         bytesLoaded = _a.sent();
                                         // Report download, removing already reported
-                                        downloaded += (file.size - bytesLoaded);
+                                        downloaded += file.size - bytesLoaded;
                                         reportProgress();
                                         return [2 /*return*/];
                                 }
@@ -446,7 +488,7 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_b.label) {
                     case 0: return [4 /*yield*/, fetch(url, {
                             method: 'GET',
-                            redirect: 'follow',
+                            redirect: 'follow'
                         })];
                     case 1:
                         resp = _b.sent();
@@ -505,6 +547,9 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
+                        if (prefs.switchToReference) {
+                            return [2 /*return*/, true];
+                        }
                         if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
                             return [2 /*return*/, false];
                         }
@@ -528,46 +573,54 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready)) return [3 /*break*/, 2];
-                        prefs.currentVersionId = prefs.availableUpdate.versionId;
-                        prefs.currentVersionForAppId = prefs.appId;
-                        delete prefs.availableUpdate;
+                        if (!prefs.switchToReference) return [3 /*break*/, 2];
+                        prefs.switchToReference = false;
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 1:
                         _a.sent();
                         _a.label = 2;
-                    case 2: 
+                    case 2:
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready)) return [3 /*break*/, 4];
+                        prefs.currentVersionId = prefs.availableUpdate.versionId;
+                        prefs.currentVersionForAppId = prefs.appId;
+                        delete prefs.availableUpdate;
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 3:
+                        _a.sent();
+                        _a.label = 4;
+                    case 4: 
                     // Clean current version if its stale
                     return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
-                    case 3:
+                    case 5:
                         // Clean current version if its stale
                         _a.sent();
-                        if (!prefs.currentVersionId) return [3 /*break*/, 8];
+                        if (!prefs.currentVersionId) return [3 /*break*/, 10];
                         return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
-                    case 4:
-                        if (!_a.sent()) return [3 /*break*/, 7];
+                    case 6:
+                        if (!_a.sent()) return [3 /*break*/, 9];
                         console.log("Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 5:
+                    case 7:
                         _a.sent();
                         channel.onIonicProReady.fire();
                         Ionic.WebView.persistServerBasePath();
                         return [4 /*yield*/, this.cleanupVersions()];
-                    case 6:
+                    case 8:
                         _a.sent();
                         return [2 /*return*/, false];
-                    case 7:
+                    case 9:
                         // Is the current version on the device?
-                        if (!(prefs.currentVersionId in prefs.updates)) {
+                        if (!(prefs.currentVersionId in prefs.updates) && prefs.currentVersionId !== 'bundle') {
                             console.error("Missing version " + prefs.currentVersionId);
                             channel.onIonicProReady.fire();
                             return [2 /*return*/, false];
                         }
                         newLocation = new URL(this.getSnapshotCacheDir(prefs.currentVersionId));
+                        console.log('setServerBasePath: ' + newLocation.pathname);
                         Ionic.WebView.setServerBasePath(newLocation.pathname);
                         return [2 /*return*/, true];
-                    case 8:
+                    case 10:
                         channel.onIonicProReady.fire();
                         return [2 /*return*/, false];
                 }
@@ -580,7 +633,8 @@ var IonicDeployImpl = /** @class */ (function () {
         var currentVersionName = this._savedPreferences.binaryVersionName;
         console.log("Current: versionCode: " + currentVersionCode + " versionName: " + currentVersionName);
         console.log("update: versionCode: " + update.binaryVersionCode + " versionName: " + update.binaryVersionName);
-        return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
+        return (update.binaryVersionName === currentVersionName &&
+            update.binaryVersionCode === currentVersionCode);
     };
     IonicDeployImpl.prototype.cleanCurrentVersionIfStale = function () {
         return __awaiter(this, void 0, void 0, function () {
@@ -697,7 +751,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._fileManager.getDirectory(snapshotDir, false)];
                     case 2:
                         dirEntry_1 = _a.sent();
-                        return [4 /*yield*/, (new Promise(function (resolve, reject) { return dirEntry_1.removeRecursively(resolve, reject); }))];
+                        return [4 /*yield*/, new Promise(function (resolve, reject) { return dirEntry_1.removeRecursively(resolve, reject); })];
                     case 3:
                         _a.sent();
                         timer.end();
@@ -712,6 +766,39 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
+    IonicDeployImpl.prototype._copyBundleToSnapshot = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var _this = this;
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
+                        var copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        return __generator(this, function (_a) {
+                            switch (_a.label) {
+                                case 0:
+                                    _a.trys.push([0, 4, , 5]);
+                                    copyFrom = this.getBundledAppDir();
+                                    return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
+                                case 1:
+                                    rootAppDirEntry = _a.sent();
+                                    return [4 /*yield*/, this._fileManager.getDirectory(this.getSnapshotCacheDir(''), true)];
+                                case 2:
+                                    snapshotCacheDirEntry = _a.sent();
+                                    return [4 /*yield*/, this._cleanSnapshotDir('bundle')];
+                                case 3:
+                                    _a.sent();
+                                    rootAppDirEntry.copyTo(snapshotCacheDirEntry, 'bundle', resolve, reject);
+                                    return [3 /*break*/, 5];
+                                case 4:
+                                    e_4 = _a.sent();
+                                    reject(e_4);
+                                    return [3 /*break*/, 5];
+                                case 5: return [2 /*return*/];
+                            }
+                        });
+                    }); })];
+            });
+        });
+    };
     IonicDeployImpl.prototype._copyBaseAppDir = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
             var timer;
@@ -719,7 +806,7 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 timer = new Timer('CopyBaseApp');
                 return [2 /*return*/, new Promise(function (resolve, reject) { return __awaiter(_this, void 0, void 0, function () {
-                        var prefs, currentVersion, isDefaultApp, switchingApps, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_4;
+                        var prefs, currentVersion, isDefaultApp, switchingApps, copyFrom, rootAppDirEntry, snapshotCacheDirEntry, e_5;
                         return __generator(this, function (_a) {
                             switch (_a.label) {
                                 case 0:
@@ -734,7 +821,9 @@ var IonicDeployImpl = /** @class */ (function () {
                                     switchingApps = !(currentVersion && prefs.currentVersionForAppId === prefs.appId);
                                     copyFrom = !switchingApps
                                         ? this.getSnapshotCacheDir(this._savedPreferences.currentVersionId)
-                                        : (isDefaultApp ? this.getBundledAppDir() : this.getBundledAppDir());
+                                        : isDefaultApp
+                                            ? this.getBundledAppDir()
+                                            : this.getBundledAppDir();
                                     return [4 /*yield*/, this._fileManager.getDirectory(copyFrom, false)];
                                 case 3:
                                     rootAppDirEntry = _a.sent();
@@ -747,8 +836,8 @@ var IonicDeployImpl = /** @class */ (function () {
                                     }, reject);
                                     return [3 /*break*/, 6];
                                 case 5:
-                                    e_4 = _a.sent();
-                                    reject(e_4);
+                                    e_5 = _a.sent();
+                                    reject(e_5);
                                     return [3 /*break*/, 6];
                                 case 6: return [2 /*return*/];
                             }
@@ -830,7 +919,9 @@ var IonicDeployImpl = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
-                return [2 /*return*/, Object.keys(this._savedPreferences.updates).map(function (k) { return _this._convertToSnapshotInfo(_this._savedPreferences.updates[k]); })];
+                return [2 /*return*/, Object.keys(this._savedPreferences.updates).map(function (k) {
+                        return _this._convertToSnapshotInfo(_this._savedPreferences.updates[k]);
+                    })];
             });
         });
     };
@@ -957,8 +1048,8 @@ var FileManager = /** @class */ (function () {
             var _this = this;
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
-                        resolveLocalFileSystemURL(path, function (entry) { return entry.isDirectory ? resolve(entry) : reject(); }, function () { return __awaiter(_this, void 0, void 0, function () {
-                            var components, child, parent_1, e_5;
+                        resolveLocalFileSystemURL(path, function (entry) { return (entry.isDirectory ? resolve(entry) : reject()); }, function () { return __awaiter(_this, void 0, void 0, function () {
+                            var components, child, parent_1, e_6;
                             var _this = this;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
@@ -991,8 +1082,8 @@ var FileManager = /** @class */ (function () {
                                         }); }, reject);
                                         return [3 /*break*/, 4];
                                     case 3:
-                                        e_5 = _a.sent();
-                                        reject(e_5);
+                                        e_6 = _a.sent();
+                                        reject(e_6);
                                         return [3 /*break*/, 4];
                                     case 4: return [2 /*return*/];
                                 }
@@ -1045,7 +1136,7 @@ var FileManager = /** @class */ (function () {
     };
     FileManager.prototype.fileExists = function (path, fileName) {
         return __awaiter(this, void 0, void 0, function () {
-            var e_6;
+            var e_7;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1055,7 +1146,7 @@ var FileManager = /** @class */ (function () {
                         _a.sent();
                         return [2 /*return*/, true];
                     case 2:
-                        e_6 = _a.sent();
+                        e_7 = _a.sent();
                         return [2 /*return*/, false];
                     case 3: return [2 /*return*/];
                 }
@@ -1192,7 +1283,7 @@ var IonicDeploy = /** @class */ (function () {
         this.supportsPartialNativeUpdates = true;
         this.parent = parent;
         this.delegate = this.initialize();
-        this.fetchIsAvailable = typeof (fetch) === 'function';
+        this.fetchIsAvailable = typeof fetch === 'function';
         document.addEventListener('deviceready', this.onLoad.bind(this));
     }
     IonicDeploy.prototype.initialize = function () {
@@ -1254,7 +1345,10 @@ var IonicDeploy = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!(!this.disabled && this.lastPause && this.minBackgroundDuration && Date.now() - this.lastPause > this.minBackgroundDuration * 1000)) return [3 /*break*/, 3];
+                        if (!(!this.disabled &&
+                            this.lastPause &&
+                            this.minBackgroundDuration &&
+                            Date.now() - this.lastPause > this.minBackgroundDuration * 1000)) return [3 /*break*/, 3];
                         return [4 /*yield*/, this.delegate];
                     case 1: return [4 /*yield*/, (_a.sent())._handleInitialPreferenceState()];
                     case 2:
