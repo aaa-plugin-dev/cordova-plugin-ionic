@@ -6,6 +6,9 @@
     <keywords>ionic,cordova,deploy,liveupdates,mobile,hybrid,ecosystem:cordova,cordova-android,cordova-ios</keywords>
     <repo>https://github.com/ionic-team/cordova-plugin-ionic.git</repo>
     <issue>https://github.com/ionic-team/cordova-plugin-ionic/issues</issue>
+    <js-module src="src/www/crypto-js.js" name="crypto-js">
+        <runs/>
+    </js-module>
     <js-module src="dist/common.js">
         <clobbers target="IonicCordova"/>
     </js-module>

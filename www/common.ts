@@ -12,6 +12,8 @@ channel.waitForInitialization('onIonicProReady');
 declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
 declare const Capacitor: any;
+declare const window: any;
+declare const CryptoJS: any;
 
 enum UpdateMethod {
   BACKGROUND = 'background',
@@ -35,6 +37,7 @@ import {
   isPluginConfig
 } from './guards';
 
+
 class Path {
     static join(...paths: string[]): string {
         let fullPath: string = paths.shift() || '';
@@ -54,7 +57,6 @@ class Path {
  *
  * The plugin API for the live updates feature.
  */
-
 class IonicDeployImpl {
 
   private readonly appInfo: IAppInfo;
@@ -65,12 +67,119 @@ class IonicDeployImpl {
   public PLUGIN_VERSION = '5.2.10';
   private lastProgressEvent = 0;
 
+  private coreFiles = [
+    /index\.html/,
+    /build\/main\.((\w)*\.){0,1}js/,
+    /build\/vendor.((\w)*\.){0,1}js/,
+    /build\/polyfills\.js/,
+  ];
+
+  private integrityCheckTimeout: any;
+  private integrityCheckForceValid = false;
+
   constructor(appInfo: IAppInfo, preferences: ISavedPreferences) {
     this.appInfo = appInfo;
     this._savedPreferences = preferences;
   }
 
+  isCoreFile(file: ManifestFileEntry): boolean {
+    return this.coreFiles.some((coreFile) => {
+      const regxp = new RegExp(coreFile);
+      if (regxp.test(file.href)) {
+        return true;
+      }
+
+      return false;
+    });
+  }
+
+  async checkCoreIntegrity(): Promise<boolean> {
+    if (this._savedPreferences.currentVersionId) {
+      const manifest = await this.getSnapshotManifest(<string>this._savedPreferences.currentVersionId);
+      const integrityChecks: ManifestFileEntry[] = [];
+
+      manifest.some((file) => {
+        if (integrityChecks.length >= this.coreFiles.length) {
+          return true;
+        }
+
+        this.coreFiles.some((coreFile) => {
+          if (integrityChecks.length >= this.coreFiles.length) {
+            return true;
+          }
+
+          const regxp = new RegExp(coreFile);
+          if (regxp.test(file.href)) {
+            integrityChecks.push(file);
+          }
+
+          return false;
+        });
+
+        return false;
+      });
+
+      await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
+
+      return true;
+    }
+
+    return true;
+  }
+
+  async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<boolean> {
+    const fileSize = (await this._fileManager.getFileEntryFile(this.getSnapshotCacheDir(versionId), file.href)).size;
+
+    // Can't verify the size of the pro-manifest
+    if (file.size === 0) {
+      return true;
+    }
+
+    const fileSizesMatch = fileSize === file.size;
+
+    if (!fileSizesMatch) {
+      console.log('File size integrity does not match.');
+    }
+
+    if (fileSizesMatch && this.isCoreFile(file)) {
+      console.log(`Verifying hash of core file ${file.href}.`);
+      const fullPath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
+      const contents = await this._fileManager.getFile(fullPath);
+      const expectedHash = file.integrity.split(' ')[0] || '';
+      const contentsWords = CryptoJS.enc.Utf8.parse(contents);
+      const contentsHash = CryptoJS.SHA256(contentsWords);
+      const base64 = CryptoJS.enc.Base64.stringify(contentsHash);
+      const formattedHash = `sha256-${base64}`;
+      const hashesMatch = formattedHash === expectedHash;
+
+      if (!hashesMatch) {
+        console.log('Core file integrity hash does not match.');
+      }
+
+      return hashesMatch;
+    }
+
+    return fileSizesMatch
+      ? Promise.resolve(true)
+      : Promise.reject();
+
+  }
+
   async _handleInitialPreferenceState() {
+    // 6 seconds after startup, check core file integrity
+    // this timeout is cleared if 'configure' is called (because clearly file integrity is fine if configure was called)
+    this.integrityCheckTimeout = setTimeout(() => {
+      console.log('CoreFileIntegrityCheck - Starting');
+      this.checkCoreIntegrity()
+        .then(() => console.log('CoreFileIntegrityCheck - Success')) // do nothing, integrity is fine... )
+        .catch((err) => {
+          console.log('CoreFileIntegrityCheck - Failed', err);
+          if (!this.integrityCheckForceValid) {
+            window.broadcaster && window.broadcaster.fileNativeEvent('ionic/DOWNLOAD_ERROR', {});
+          }
+        });
+    }, 6000);
+
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
       console.warn('The device appears to be offline. Loading last available version and skipping update checks.');
@@ -143,6 +252,9 @@ class IonicDeployImpl {
   }
 
   async configure(config: IDeployConfig) {
+    clearTimeout(this.integrityCheckTimeout);
+    this.integrityCheckForceValid = true;
+
     if (!isPluginConfig(config)) {
       throw new Error('Invalid Config Object');
     }
@@ -151,6 +263,7 @@ class IonicDeployImpl {
     });
     Object.assign(this._savedPreferences, config);
     this._savePrefs(this._savedPreferences);
+
   }
 
   async checkForUpdate(): Promise<CheckDeviceResponse> {
@@ -233,12 +346,6 @@ class IonicDeployImpl {
       // Download the files
       await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
 
-      // Save new Manifest
-      await this._fileManager.downloadAndWriteFile(
-        prefs.availableUpdate.url,
-        Path.join(this.getSnapshotCacheDir(prefs.availableUpdate.versionId), this.MANIFEST_FILE)
-      );
-
       prefs.availableUpdate.state = UpdateState.Pending;
 
       await this._savePrefs(prefs);
@@ -251,7 +358,7 @@ class IonicDeployImpl {
     console.log('Downloading update...');
 
     let size = 0, downloaded = 0;
-    const concurrent = 3;
+    const concurrent = 5;
 
     manifest.forEach(i => {
       size += i.size;
@@ -270,20 +377,26 @@ class IonicDeployImpl {
 
     const beforeDownloadTimer = new Timer('downloadTimer');
     const downloadFile = async (file: ManifestFileEntry) => {
+      console.log('Downloading ionic update file: ', file.href);
       const base = new URL(baseUrl);
       const newUrl = new URL(file.href, baseUrl);
       newUrl.search = base.search;
       const filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
-      const bytesLoaded = await this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath, (bytes) => {
+      const bytesLoaded = await this._fileManager.downloadAndWriteFile(file, newUrl.toString(), filePath, (bytes) => {
         if (bytes) {
           downloaded += bytes;
+          console.log('Reporting inter progress', bytes);
           reportProgress();
         }
       });
 
+      // After download, check file integrity
+      await this.checkFileIntegrity(file, versionId);
+
       // Report download, removing already reported
       downloaded += (file.size - bytesLoaded);
       reportProgress();
+      console.log('Reporting progress', downloaded);
     };
 
     const downloads = [];
@@ -292,9 +405,15 @@ class IonicDeployImpl {
       downloads.push(entry);
     }
 
-    await this.asyncPoolDownloads(concurrent, downloads, async (entry: ManifestFileEntry) =>
-      await downloadFile(entry)
-    );
+    await this.asyncPoolDownloads(concurrent, downloads, async (entry: ManifestFileEntry) => {
+      try {
+        await downloadFile(entry);
+      } catch (err) {
+        await downloadFile(entry); // retry once, if failed, bubble error
+      }
+
+      return true;
+    });
 
     console.log(`Files downloaded.`);
 
@@ -329,10 +448,22 @@ class IonicDeployImpl {
   }
 
   private async _diffManifests(newManifest: ManifestFileEntry[], versionId: string) {
+    let snapshotManifest: any[] = [];
     try {
-      const snapshotManifest = await this.getSnapshotManifest(versionId);
+      snapshotManifest = await this.getSnapshotManifest(versionId);
+    } catch (err) {
+      snapshotManifest = [];
+    }
+
+    try {
       const snapManifestStrings = snapshotManifest.map(entry => JSON.stringify(entry));
       const differences = newManifest.filter(entry => snapManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+
+      // Append pro-manifest.json if there are differences
+      if (differences.length > 0) {
+        differences.push({ href: 'pro-manifest.json', integrity: 'void', size: 0 });
+      }
+
       return differences;
     } catch (e) {
       return newManifest;
@@ -386,7 +517,7 @@ class IonicDeployImpl {
         await this._savePrefs(prefs);
         channel.onIonicProReady.fire();
         Ionic.WebView.persistServerBasePath();
-        await this.cleanupVersions();
+        this.cleanupVersions(); // don't wait to cleanup versions, do it in the bg
         return false;
       }
 
@@ -396,8 +527,6 @@ class IonicDeployImpl {
         channel.onIonicProReady.fire();
         return false;
       }
-
-      // Before reloading the webview, clean current version if stale...
 
       // Reload the webview
       const newLocation = new URL(this.getSnapshotCacheDir(prefs.currentVersionId));
@@ -422,7 +551,7 @@ class IonicDeployImpl {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
-      if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) ) {
+      if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !this._isRunningVersion(prefs.currentVersionId) ) {
         console.log(
           `Update ${prefs.currentVersionId} was built for different binary version, updating cordova assets...` +
           `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
@@ -447,14 +576,14 @@ class IonicDeployImpl {
           console.log('Ionic: Copying cordova files...');
           await this._fileManager.removeFile(snapshotDirectory, 'cordova.js');
           await this._fileManager.removeFile(snapshotDirectory, 'cordova_plugins.js');
-          await this._fileManager.copyTo(this.getBundledAppDir(), 'cordova.js', snapshotDirectory, 'cordova.js');
-          await this._fileManager.copyTo(this.getBundledAppDir(), 'cordova_plugins.js', snapshotDirectory, 'cordova_plugins.js');
+          await this._fileManager.copyTo(bundledAppDir, 'cordova.js', snapshotDirectory, 'cordova.js');
+          await this._fileManager.copyTo(bundledAppDir, 'cordova_plugins.js', snapshotDirectory, 'cordova_plugins.js');
 
           // IOS only
           if (this.appInfo.platform === 'ios') {
             console.log('Ionic: Copying ios specific files...');
             await this._fileManager.removeFile(snapshotDirectory, 'wk-plugin.js');
-            await this._fileManager.copyTo(this.getBundledAppDir(), 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js');
+            await this._fileManager.copyTo(bundledAppDir, 'wk-plugin.js', snapshotDirectory, 'wk-plugin.js');
           }
 
         } catch (err) {
@@ -564,9 +693,15 @@ class IonicDeployImpl {
   }
 
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
-    const fileContents = await this._fileManager.getFile(
-      Path.join(dir, this.MANIFEST_FILE)
-    );
+    let fileContents = '[]';
+
+    try {
+      fileContents = await this._fileManager.getFile(
+        Path.join(dir, this.MANIFEST_FILE)
+      );
+    } catch (err) {
+      // do nothing, use fresh
+    }
 
     try {
       const manifest = JSON.parse(<string>fileContents);
@@ -616,7 +751,7 @@ class IonicDeployImpl {
   }
 
   private async cleanupVersions() {
-    const prefs = this._savedPreferences;
+    // const prefs = this._savedPreferences;
 
     // let updates = this.getStoredUpdates();
     // First clean stale versions
@@ -635,7 +770,7 @@ class IonicDeployImpl {
     let updates = this.getStoredUpdates();
     updates = updates.sort((a, b) => a.lastUsed.localeCompare(b.lastUsed));
     updates = updates.reverse();
-    updates = updates.slice(prefs.maxVersions);
+    updates = updates.slice(1);
 
     for (const update of updates) {
       await this.deleteVersionById(update.versionId);
@@ -725,6 +860,13 @@ class FileManager {
     });
   }
 
+  async getFileEntryFile(path: string, fileName: string): Promise<File> {
+    const fileEntry = await this.getFileEntry(path, fileName);
+    return new Promise<File>((resolve, reject) => {
+      fileEntry.file(resolve, reject);
+    });
+  }
+
   async fileExists(path: string, fileName: string) {
     try {
       await this.getFileEntry(path, fileName);
@@ -769,49 +911,25 @@ class FileManager {
     });
   }
 
-  async downloadAndWriteFile(url: string, path: string, progressFn: CallbackFunction<number> = () => void 0): Promise<number> {
+  async downloadAndWriteFile(file: ManifestFileEntry, url: string, path: string, progressFn: CallbackFunction<number> = () => void 0): Promise<number> {
     const fileT = new FileTransfer();
-    const retries = 1;
     let loaded = 0;
-    let attempts = 0;
 
     // On progress, increment total progress
     fileT.onprogress = (progress) => {
+      console.log('onProgress', progress);
       if (progress.loaded) {
-        // report only the difference from last time
         progressFn(progress.loaded - loaded);
         loaded = progress.loaded;
-      } else {
-        // increment by 100 byte to keep progress events flowing
-        progressFn(100);
       }
     };
 
-    const tryDownload = (): Promise<number> => {
-      attempts++;
-      return new Promise((resolve, reject) => {
-        fileT.download(url, path, () => {
-          resolve(loaded);
-        }, () => {
-
-          // trigger progress, removing the previously loaded bytes, then reset loaded
-          progressFn(-Math.abs(loaded));
-          loaded = 0;
-
-          // Can we retry?
-          if (attempts <= retries) {
-            tryDownload()
-              .then(resolve)
-              .catch(reject);
-          } else {
-            // no more retries remaining...
-            reject();
-          }
-        });
-      });
-    };
-
-    return tryDownload();
+    return new Promise<number>((resolve, reject) => {
+      fileT.download(url, path, () => {
+        console.log('Download of ionic update file complete.', url);
+        resolve(loaded);
+      }, reject, true);
+    });
   }
 }
 
