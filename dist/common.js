@@ -107,12 +107,12 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.checkCoreIntegrity = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var manifest, integrityChecks_1;
+            var manifest, integrityChecks_1, err_1;
             var _this = this;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!this._savedPreferences.currentVersionId) return [3 /*break*/, 3];
+                        if (!this._savedPreferences.currentVersionId) return [3 /*break*/, 6];
                         return [4 /*yield*/, this.getSnapshotManifest(this._savedPreferences.currentVersionId)];
                     case 1:
                         manifest = _a.sent();
@@ -133,13 +133,23 @@ var IonicDeployImpl = /** @class */ (function () {
                             });
                             return false;
                         });
+                        _a.label = 2;
+                    case 2:
+                        _a.trys.push([2, 4, , 5]);
                         return [4 /*yield*/, Promise.all(integrityChecks_1.map(function (file) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
                                 return [2 /*return*/, this.checkFileIntegrity(file, this._savedPreferences.currentVersionId)];
                             }); }); }))];
-                    case 2:
+                    case 3:
                         _a.sent();
-                        return [2 /*return*/, true];
-                    case 3: return [2 /*return*/, true];
+                        return [3 /*break*/, 5];
+                    case 4:
+                        err_1 = _a.sent();
+                        window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+                            type: 'coreIntegrity'
+                        });
+                        throw err_1;
+                    case 5: return [2 /*return*/, true];
+                    case 6: return [2 /*return*/, true];
                 }
             });
         });
@@ -158,7 +168,12 @@ var IonicDeployImpl = /** @class */ (function () {
                         }
                         fileSizesMatch = fileSize === file.size;
                         if (!fileSizesMatch) {
+                            window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+                                file: file.href,
+                                type: 'integrity'
+                            });
                             console.log('File size integrity does not match.');
+                            throw new Error('File size integrity does not match.');
                         }
                         if (!(fileSizesMatch && this.isCoreFile(file))) return [3 /*break*/, 3];
                         console.log("Verifying hash of core file " + file.href + ".");
@@ -173,12 +188,10 @@ var IonicDeployImpl = /** @class */ (function () {
                         formattedHash = "sha256-" + base64;
                         hashesMatch = formattedHash === expectedHash;
                         if (!hashesMatch) {
-                            console.log('Core file integrity hash does not match.');
+                            console.log('Core file integrity hash does not match.', file, contents, contentsHash);
                         }
-                        return [2 /*return*/, hashesMatch];
-                    case 3: return [2 /*return*/, fileSizesMatch
-                            ? Promise.resolve(true)
-                            : Promise.reject()];
+                        _a.label = 3;
+                    case 3: return [2 /*return*/];
                 }
             });
         });
@@ -199,7 +212,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                 .catch(function (err) {
                                 console.log('CoreFileIntegrityCheck - Failed', err);
                                 if (!_this.integrityCheckForceValid) {
-                                    window.broadcaster && window.broadcaster.fileNativeEvent('ionic/DOWNLOAD_ERROR', {});
+                                    window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_ERROR', {});
                                 }
                             });
                         }, 6000);
@@ -436,7 +449,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.downloadUpdate = function (progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest;
+            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_2;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -450,7 +463,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         _b.sent();
                         return [2 /*return*/, true];
                     case 2:
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 7];
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 10];
                         return [4 /*yield*/, Promise.all([
                                 this._fetchManifest(prefs.availableUpdate.url),
                                 this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
@@ -460,17 +473,24 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
                     case 4:
                         diffedManifest = _b.sent();
-                        // Download the files
-                        return [4 /*yield*/, this._downloadFilesFromManifest(fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
+                        _b.label = 5;
                     case 5:
-                        // Download the files
-                        _b.sent();
-                        prefs.availableUpdate.state = UpdateState.Pending;
-                        return [4 /*yield*/, this._savePrefs(prefs)];
+                        _b.trys.push([5, 7, , 8]);
+                        return [4 /*yield*/, this._downloadFilesFromManifest(fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
                     case 6:
                         _b.sent();
+                        return [3 /*break*/, 8];
+                    case 7:
+                        err_2 = _b.sent();
+                        console.log('CAUGHT ERROR - DOWNLOAD', err_2);
+                        throw err_2;
+                    case 8:
+                        prefs.availableUpdate.state = UpdateState.Pending;
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 9:
+                        _b.sent();
                         return [2 /*return*/, true];
-                    case 7: return [2 /*return*/, false];
+                    case 10: return [2 /*return*/, false];
                 }
             });
         });
@@ -498,7 +518,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         };
                         beforeDownloadTimer = new Timer('downloadTimer');
                         downloadFile = function (file) { return __awaiter(_this, void 0, void 0, function () {
-                            var base, newUrl, filePath, bytesLoaded;
+                            var base, newUrl, filePath, bytesLoaded, err_3;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
                                     case 0:
@@ -507,24 +527,35 @@ var IonicDeployImpl = /** @class */ (function () {
                                         newUrl = new URL(file.href, baseUrl);
                                         newUrl.search = base.search;
                                         filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
+                                        bytesLoaded = 0;
+                                        _a.label = 1;
+                                    case 1:
+                                        _a.trys.push([1, 3, , 4]);
                                         return [4 /*yield*/, this._fileManager.downloadAndWriteFile(file, newUrl.toString(), filePath, function (bytes) {
                                                 if (bytes) {
                                                     downloaded += bytes;
-                                                    console.log('Reporting inter progress', bytes);
                                                     reportProgress();
                                                 }
                                             })];
-                                    case 1:
-                                        bytesLoaded = _a.sent();
-                                        // After download, check file integrity
-                                        return [4 /*yield*/, this.checkFileIntegrity(file, versionId)];
                                     case 2:
+                                        bytesLoaded = _a.sent();
+                                        return [3 /*break*/, 4];
+                                    case 3:
+                                        err_3 = _a.sent();
+                                        window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+                                            file: file.href,
+                                            type: 'http'
+                                        });
+                                        throw err_3;
+                                    case 4: 
+                                    // After download, check file integrity
+                                    return [4 /*yield*/, this.checkFileIntegrity(file, versionId)];
+                                    case 5:
                                         // After download, check file integrity
                                         _a.sent();
                                         // Report download, removing already reported
                                         downloaded += file.size - bytesLoaded;
                                         reportProgress();
-                                        console.log('Reporting progress', downloaded);
                                         return [2 /*return*/];
                                 }
                             });
@@ -536,7 +567,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             downloads.push(entry);
                         }
                         return [4 /*yield*/, this.asyncPoolDownloads(concurrent, downloads, function (entry) { return __awaiter(_this, void 0, void 0, function () {
-                                var err_1;
+                                var err_4;
                                 return __generator(this, function (_a) {
                                     switch (_a.label) {
                                         case 0:
@@ -546,12 +577,12 @@ var IonicDeployImpl = /** @class */ (function () {
                                             _a.sent();
                                             return [3 /*break*/, 4];
                                         case 2:
-                                            err_1 = _a.sent();
+                                            err_4 = _a.sent();
                                             return [4 /*yield*/, downloadFile(entry)];
                                         case 3:
                                             _a.sent(); // retry once, if failed, bubble error
                                             return [3 /*break*/, 4];
-                                        case 4: return [2 /*return*/, true];
+                                        case 4: return [2 /*return*/];
                                     }
                                 });
                             }); })];
@@ -631,7 +662,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._diffManifests = function (newManifest, versionId) {
         return __awaiter(this, void 0, void 0, function () {
-            var snapshotManifest, err_2, snapManifestStrings_1, differences;
+            var snapshotManifest, err_5, snapManifestStrings_1, differences;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -644,7 +675,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         snapshotManifest = _a.sent();
                         return [3 /*break*/, 4];
                     case 3:
-                        err_2 = _a.sent();
+                        err_5 = _a.sent();
                         snapshotManifest = [];
                         return [3 /*break*/, 4];
                     case 4:
@@ -778,7 +809,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanCurrentVersionIfStale = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, snapshotDirectory, bundledAppDir, err_3;
+            var prefs, snapshotDirectory, bundledAppDir, err_6;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -830,8 +861,8 @@ var IonicDeployImpl = /** @class */ (function () {
                         _a.label = 11;
                     case 11: return [3 /*break*/, 13];
                     case 12:
-                        err_3 = _a.sent();
-                        console.log(err_3);
+                        err_6 = _a.sent();
+                        console.log(err_6);
                         return [3 /*break*/, 13];
                     case 13:
                         // Switch the updates binary version name
@@ -1030,7 +1061,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.parseManifestFile = function (dir) {
         return __awaiter(this, void 0, void 0, function () {
-            var fileContents, err_4, manifest;
+            var fileContents, err_7, manifest;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1043,7 +1074,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         fileContents = _a.sent();
                         return [3 /*break*/, 4];
                     case 3:
-                        err_4 = _a.sent();
+                        err_7 = _a.sent();
                         return [3 /*break*/, 4];
                     case 4:
                         try {
@@ -1121,7 +1152,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         updates = this.getStoredUpdates();
                         updates = updates.sort(function (a, b) { return a.lastUsed.localeCompare(b.lastUsed); });
                         updates = updates.reverse();
-                        updates = updates.slice(1);
+                        updates = updates.slice(3);
                         _i = 0, updates_1 = updates;
                         _a.label = 1;
                     case 1:
