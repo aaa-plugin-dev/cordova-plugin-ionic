@@ -1068,7 +1068,6 @@ class FileManager {
 
     // On progress, increment total progress
     fileT.onprogress = (progress) => {
-      console.log('onProgress', progress);
       if (progress.loaded) {
         progressFn(progress.loaded - loaded);
         loaded = progress.loaded;

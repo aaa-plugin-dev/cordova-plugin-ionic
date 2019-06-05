@@ -1430,7 +1430,6 @@ var FileManager = /** @class */ (function () {
                 loaded = 0;
                 // On progress, increment total progress
                 fileT.onprogress = function (progress) {
-                    console.log('onProgress', progress);
                     if (progress.loaded) {
                         progressFn(progress.loaded - loaded);
                         loaded = progress.loaded;
