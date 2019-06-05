@@ -119,7 +119,15 @@ class IonicDeployImpl {
         return false;
       });
 
-      await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
+      try {
+        await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
+      } catch (err) {
+        window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+          type: 'coreIntegrity'
+        });
+
+        throw err;
+      }
 
       return true;
     }
@@ -127,7 +135,7 @@ class IonicDeployImpl {
     return true;
   }
 
-  async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<boolean> {
+  async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<any> {
     const fileSize = (await this._fileManager.getFileEntryFile(this.getSnapshotCacheDir(versionId), file.href)).size;
 
     // Can't verify the size of the pro-manifest
@@ -138,7 +146,14 @@ class IonicDeployImpl {
     const fileSizesMatch = fileSize === file.size;
 
     if (!fileSizesMatch) {
+      window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+        file: file.href,
+        type: 'integrity'
+      });
+
       console.log('File size integrity does not match.');
+
+      throw new Error('File size integrity does not match.');
     }
 
     if (fileSizesMatch && this.isCoreFile(file)) {
@@ -153,16 +168,9 @@ class IonicDeployImpl {
       const hashesMatch = formattedHash === expectedHash;
 
       if (!hashesMatch) {
-        console.log('Core file integrity hash does not match.');
+        console.log('Core file integrity hash does not match.', file, contents, contentsHash);
       }
-
-      return hashesMatch;
     }
-
-    return fileSizesMatch
-      ? Promise.resolve(true)
-      : Promise.reject();
-
   }
 
   async _handleInitialPreferenceState() {
@@ -175,7 +183,7 @@ class IonicDeployImpl {
         .catch((err) => {
           console.log('CoreFileIntegrityCheck - Failed', err);
           if (!this.integrityCheckForceValid) {
-            window.broadcaster && window.broadcaster.fileNativeEvent('ionic/DOWNLOAD_ERROR', {});
+            window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_ERROR', {});
           }
         });
     }, 6000);
@@ -344,11 +352,18 @@ class IonicDeployImpl {
       const diffedManifest = await this._diffManifests(manifestJson, prefs.availableUpdate.versionId);
 
       // Download the files
-      await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
+      try {
+        await this._downloadFilesFromManifest(fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
+      } catch (err) {
+        console.log('CAUGHT ERROR - DOWNLOAD', err);
+
+        throw err;
+      }
 
       prefs.availableUpdate.state = UpdateState.Pending;
 
       await this._savePrefs(prefs);
+
       return true;
     }
     return false;
@@ -382,13 +397,23 @@ class IonicDeployImpl {
       const newUrl = new URL(file.href, baseUrl);
       newUrl.search = base.search;
       const filePath = Path.join(this.getSnapshotCacheDir(versionId), file.href);
-      const bytesLoaded = await this._fileManager.downloadAndWriteFile(file, newUrl.toString(), filePath, (bytes) => {
-        if (bytes) {
-          downloaded += bytes;
-          console.log('Reporting inter progress', bytes);
-          reportProgress();
-        }
-      });
+      let bytesLoaded = 0;
+
+      try {
+        bytesLoaded = await this._fileManager.downloadAndWriteFile(file, newUrl.toString(), filePath, (bytes) => {
+          if (bytes) {
+            downloaded += bytes;
+            reportProgress();
+          }
+        });
+      } catch (err) {
+        window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_WARNING', {
+          file: file.href,
+          type: 'http'
+        });
+
+        throw err;
+      }
 
       // After download, check file integrity
       await this.checkFileIntegrity(file, versionId);
@@ -396,10 +421,9 @@ class IonicDeployImpl {
       // Report download, removing already reported
       downloaded += (file.size - bytesLoaded);
       reportProgress();
-      console.log('Reporting progress', downloaded);
     };
 
-    const downloads = [];
+    const downloads: ManifestFileEntry[] = [];
     console.log(`Downloading ${manifest.length} new files...`);
     for (const entry of manifest) {
       downloads.push(entry);
@@ -411,8 +435,6 @@ class IonicDeployImpl {
       } catch (err) {
         await downloadFile(entry); // retry once, if failed, bubble error
       }
-
-      return true;
     });
 
     console.log(`Files downloaded.`);
@@ -770,7 +792,7 @@ class IonicDeployImpl {
     let updates = this.getStoredUpdates();
     updates = updates.sort((a, b) => a.lastUsed.localeCompare(b.lastUsed));
     updates = updates.reverse();
-    updates = updates.slice(1);
+    updates = updates.slice(3);
 
     for (const update of updates) {
       await this.deleteVersionById(update.versionId);

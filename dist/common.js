@@ -199,7 +199,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                 .catch(function (err) {
                                 console.log('CoreFileIntegrityCheck - Failed', err);
                                 if (!_this.integrityCheckForceValid) {
-                                    window.broadcaster && window.broadcaster.fileNativeEvent('ionic/DOWNLOAD_ERROR', {});
+                                    window.broadcaster && window.broadcaster.fireNativeEvent('ionic/DOWNLOAD_ERROR', {});
                                 }
                             });
                         }, 6000);
