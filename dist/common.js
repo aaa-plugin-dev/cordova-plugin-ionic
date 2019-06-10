@@ -767,10 +767,10 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 5:
                         // Clean current version if its stale
                         _a.sent();
-                        if (!prefs.currentVersionId) return [3 /*break*/, 9];
+                        if (!prefs.currentVersionId) return [3 /*break*/, 10];
                         return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
                     case 6:
-                        if (!_a.sent()) return [3 /*break*/, 8];
+                        if (!_a.sent()) return [3 /*break*/, 9];
                         console.log("Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
@@ -778,9 +778,11 @@ var IonicDeployImpl = /** @class */ (function () {
                         _a.sent();
                         channel.onIonicProReady.fire();
                         Ionic.WebView.persistServerBasePath();
-                        this.cleanupVersions(); // don't wait to cleanup versions, do it in the bg
-                        return [2 /*return*/, false];
+                        return [4 /*yield*/, this.cleanupVersions()];
                     case 8:
+                        _a.sent();
+                        return [2 /*return*/, false];
+                    case 9:
                         // Is the current version on the device?
                         if (!(prefs.currentVersionId in prefs.updates) && prefs.currentVersionId !== 'bundle') {
                             console.error("Missing version " + prefs.currentVersionId);
@@ -791,7 +793,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         console.log('setServerBasePath: ' + newLocation.pathname);
                         Ionic.WebView.setServerBasePath(newLocation.pathname);
                         return [2 /*return*/, true];
-                    case 9:
+                    case 10:
                         channel.onIonicProReady.fire();
                         return [2 /*return*/, false];
                 }
