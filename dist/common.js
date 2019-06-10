@@ -1116,6 +1116,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         if (prefs.currentVersionId === versionId) {
                             throw Error("Can't delete version with id: " + versionId + " as it is the current version.");
                         }
+                        console.log("Deleting ionic snapshot " + versionId + ".");
                         delete prefs.updates[versionId];
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 1:
