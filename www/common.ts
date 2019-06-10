@@ -605,7 +605,7 @@ class IonicDeployImpl {
         await this._savePrefs(prefs);
         channel.onIonicProReady.fire();
         Ionic.WebView.persistServerBasePath();
-        this.cleanupVersions(); // don't wait to cleanup versions, do it in the bg
+        await this.cleanupVersions();
         return false;
       }
 
