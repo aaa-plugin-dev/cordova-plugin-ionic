@@ -545,7 +545,7 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         size = 0, downloaded = 0;
-                        concurrent = 4;
+                        concurrent = 5;
                         manifest.forEach(function (i) {
                             size += i.size;
                         });
@@ -593,7 +593,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                             console.log("Deploy => Download cancelled for file: " + entry.href);
                                             return [3 /*break*/, 8];
                                         case 1:
-                                            maxTries = 5;
+                                            maxTries = 6;
                                             i = 0, success = false, error = '';
                                             _a.label = 2;
                                         case 2:

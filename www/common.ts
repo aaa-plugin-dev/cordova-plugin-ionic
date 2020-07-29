@@ -451,7 +451,7 @@ class IonicDeployImpl {
 
   private async _downloadFilesFromManifest(cancelToken: CancelToken, baseUrl: string, manifest: ManifestFileEntry[], versionId: string, progress?: CallbackFunction<number>) {
     let size = 0, downloaded = 0;
-    const concurrent = 4;
+    const concurrent = 5;
     manifest.forEach(i => {
       size += i.size;
     });
@@ -489,7 +489,7 @@ class IonicDeployImpl {
       if (cancelToken.isCancelled()) {
         console.log(`Deploy => Download cancelled for file: ${entry.href}`);
       } else {
-        const maxTries = 5;
+        const maxTries = 6;
         let i = 0, success = false, error = '';
 
         while (!success && i < maxTries && !cancelToken.isCancelled()) {
