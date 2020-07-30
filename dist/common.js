@@ -545,7 +545,7 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         size = 0, downloaded = 0;
-                        concurrent = 5;
+                        concurrent = 10;
                         manifest.forEach(function (i) {
                             size += i.size;
                         });
@@ -564,7 +564,9 @@ var IonicDeployImpl = /** @class */ (function () {
                                         return [4 /*yield*/, this._fileManager.downloadAndWriteFile(newUrl.toString(), filePath)];
                                     case 1:
                                         _a.sent();
-                                        // await this.checkFileIntegrity(file, versionId);
+                                        return [4 /*yield*/, this.checkFileIntegrity(file, versionId)];
+                                    case 2:
+                                        _a.sent();
                                         downloaded += file.size;
                                         percentProgress = (downloaded / size) * 100;
                                         console.log("Deploy => Finished downloading " + file.href + "; progress: " + percentProgress);
@@ -593,7 +595,7 @@ var IonicDeployImpl = /** @class */ (function () {
                                             console.log("Deploy => Download cancelled for file: " + entry.href);
                                             return [3 /*break*/, 8];
                                         case 1:
-                                            maxTries = 6;
+                                            maxTries = 10;
                                             i = 0, success = false, error = '';
                                             _a.label = 2;
                                         case 2:
