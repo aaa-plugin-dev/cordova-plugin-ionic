@@ -87,7 +87,6 @@ var IonicDeployImpl = /** @class */ (function () {
         this.MANIFEST_FILE = 'pro-manifest.json';
         this.PLUGIN_VERSION = '5.4.7';
         this.coreFiles = [
-            /index\.html/,
             /runtime\.(\w)*\.js/,
             /polyfills-(\w)*\.(\w)*\.js/,
             /polyfills\.(\w)*\.js/,
@@ -163,8 +162,8 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         // Can't verify the size of the pro-manifest
-                        if (file.size === 0) {
-                            console.log('Deploy => checkFileIntegrity => no manifest file size, can\'t check');
+                        if (file.size === 0 || file.href === 'index.html') {
+                            console.log('Deploy => checkFileIntegrity => no manifest file size, or index.html -> can\'t check');
                             return [2 /*return*/, true];
                         }
                         return [4 /*yield*/, this._fileManager.getFileEntryFile(this.getSnapshotCacheDirPath(versionId), file.href)];
@@ -1441,7 +1440,7 @@ var IonicDeploy = /** @class */ (function () {
                         appInfo = _a.sent();
                         delegate = new IonicDeployImpl(appInfo, preferences);
                         if (!this.disabled) return [3 /*break*/, 3];
-                        disabledMessage = 'cordova-plugin-ionic has been disabled.';
+                        disabledMessage = 'cordova-plugin-aaa-ionic has been disabled.';
                         if (!this.fetchIsAvailable) {
                             disabledMessage = 'Fetch is unavailable so ' + disabledMessage;
                         }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-ionic" version="5.4.7">
-    <name>cordova-plugin-ionic</name>
+<plugin xmlns="http://apache.org/cordova/ns/plugins/1.0" id="cordova-plugin-aaa-ionic" version="5.4.7-2">
+    <name>cordova-plugin-aaa-ionic</name>
     <description>Ionic Cordova SDK</description>
     <license>MIT</license>
     <keywords>ionic,cordova,deploy,liveupdates,mobile,hybrid,ecosystem:cordova,cordova-android,cordova-ios</keywords>
