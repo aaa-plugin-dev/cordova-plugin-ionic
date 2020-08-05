@@ -157,42 +157,36 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.checkFileIntegrity = function (file, versionId) {
         return __awaiter(this, void 0, void 0, function () {
-            var fileSize, fileSizesMatch, fullPath, contents, expectedHash, contentsWords, contentsHash, base64, formattedHash, hashesMatch;
+            var fileSize, fileSizesMatch;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         // Can't verify the size of the pro-manifest
-                        if (file.size === 0 || file.href === 'index.html') {
-                            console.log('Deploy => checkFileIntegrity => no manifest file size, or index.html -> can\'t check');
+                        if (file.size === 0) {
+                            console.log("Deploy => checkFileIntegrity => no manifest file size for file '" + file.href + "' -> can't check");
                             return [2 /*return*/, true];
                         }
                         return [4 /*yield*/, this._fileManager.getFileEntryFile(this.getSnapshotCacheDirPath(versionId), file.href)];
                     case 1:
                         fileSize = (_a.sent()).size;
-                        fileSizesMatch = fileSize === file.size;
-                        if (!fileSizesMatch) {
-                            this.sendEvent('onIntegrityCheckFailed', {
-                                type: 'integrity',
-                                file: file.href
-                            });
-                            throw new Error('File size integrity does not match.');
+                        fileSizesMatch = false;
+                        if (file.href === 'index.html') {
+                            if (fileSize === 0) {
+                                throw new Error('File size integrity does not match.');
+                            }
+                            fileSizesMatch = true; // AppFlow build updates index.html after manifest was created, file sizes never match
                         }
-                        if (!(fileSizesMatch && this.isCoreFile(file))) return [3 /*break*/, 3];
-                        fullPath = Path.join(this.getSnapshotCacheDirPath(versionId), file.href);
-                        return [4 /*yield*/, this._fileManager.getFile(fullPath)];
-                    case 2:
-                        contents = _a.sent();
-                        expectedHash = file.integrity.split(' ')[0] || '';
-                        contentsWords = CryptoJS.enc.Utf8.parse(contents);
-                        contentsHash = CryptoJS.SHA256(contentsWords);
-                        base64 = CryptoJS.enc.Base64.stringify(contentsHash);
-                        formattedHash = "sha256-" + base64;
-                        hashesMatch = formattedHash === expectedHash;
-                        if (!hashesMatch) {
-                            console.log('Deploy => Core file integrity hash does not match.', file, contents, contentsHash);
+                        else {
+                            fileSizesMatch = fileSize === file.size;
+                            if (!fileSizesMatch) {
+                                this.sendEvent('onIntegrityCheckFailed', {
+                                    type: 'integrity',
+                                    file: file.href
+                                });
+                                throw new Error('File size integrity does not match.');
+                            }
                         }
-                        _a.label = 3;
-                    case 3: return [2 /*return*/];
+                        return [2 /*return*/, fileSizesMatch];
                 }
             });
         });

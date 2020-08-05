@@ -149,36 +149,48 @@ class IonicDeployImpl {
 
   async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<any> {
     // Can't verify the size of the pro-manifest
-    if (file.size === 0 || file.href === 'index.html') {
-      console.log('Deploy => checkFileIntegrity => no manifest file size, or index.html -> can\'t check');
+    if (file.size === 0) {
+      console.log(`Deploy => checkFileIntegrity => no manifest file size for file '${file.href}' -> can't check`);
       return true;
     }
 
     const fileSize = (await this._fileManager.getFileEntryFile(this.getSnapshotCacheDirPath(versionId), file.href)).size;
+    let fileSizesMatch = false;
 
-    const fileSizesMatch = fileSize === file.size;
-    if (!fileSizesMatch) {
-      this.sendEvent('onIntegrityCheckFailed', {
-        type: 'integrity',
-        file: file.href
-      });
-      throw new Error('File size integrity does not match.');
-    }
-
-    if (fileSizesMatch && this.isCoreFile(file)) {
-      const fullPath = Path.join(this.getSnapshotCacheDirPath(versionId), file.href);
-      const contents = await this._fileManager.getFile(fullPath);
-      const expectedHash = file.integrity.split(' ')[0] || '';
-      const contentsWords = CryptoJS.enc.Utf8.parse(contents);
-      const contentsHash = CryptoJS.SHA256(contentsWords);
-      const base64 = CryptoJS.enc.Base64.stringify(contentsHash);
-      const formattedHash = `sha256-${base64}`;
-      const hashesMatch = formattedHash === expectedHash;
-
-      if (!hashesMatch) {
-        console.log('Deploy => Core file integrity hash does not match.', file, contents, contentsHash);
+    if (file.href === 'index.html') {
+      if (fileSize === 0) {
+        throw new Error('File size integrity does not match.');
+      }
+      fileSizesMatch = true; // AppFlow build updates index.html after manifest was created, file sizes never match
+    } else {
+      fileSizesMatch = fileSize === file.size;
+      if (!fileSizesMatch) {
+        this.sendEvent('onIntegrityCheckFailed', {
+          type: 'integrity',
+          file: file.href
+        });
+        throw new Error('File size integrity does not match.');
       }
     }
+
+    return fileSizesMatch;
+
+    // We do not use the result of this check hence it is better not to execute this step
+    // --
+    // if (fileSizesMatch && this.isCoreFile(file)) {
+    //   const fullPath = Path.join(this.getSnapshotCacheDirPath(versionId), file.href);
+    //   const contents = await this._fileManager.getFile(fullPath);
+    //   const expectedHash = file.integrity.split(' ')[0] || '';
+    //   const contentsWords = CryptoJS.enc.Utf8.parse(contents);
+    //   const contentsHash = CryptoJS.SHA256(contentsWords);
+    //   const base64 = CryptoJS.enc.Base64.stringify(contentsHash);
+    //   const formattedHash = `sha256-${base64}`;
+    //   const hashesMatch = formattedHash === expectedHash;
+
+    //   if (!hashesMatch) {
+    //     console.log('Deploy => Core file integrity hash does not match.', file, contents, contentsHash);
+    //   }
+    // }
   }
 
   async _handleInitialPreferenceState() {
