@@ -23,7 +23,6 @@ declare const resolveLocalFileSystemURL: Window['resolveLocalFileSystemURL'] ;
 declare const Ionic: any;
 declare const Capacitor: any;
 declare const window: any;
-declare const CryptoJS: any;
 
 const ReferenceAppId = '5fc6b2fe';
 
@@ -273,7 +272,10 @@ class IonicDeployImpl {
         'IonicCordovaCommon', 'restart');
     } else if (this.appInfo.platform === 'ios') {
         Ionic.WebView.setServerBasePath(prefs.bundlePath);
-        Ionic.WebView.persistServerBasePath();
+        cordova.exec(
+          () => { console.log('Deploy => App restart success'); },
+          () => { console.log('Deploy => App restart fail'); },
+          'IonicCordovaCommon', 'restart');
     }
 
     return true;

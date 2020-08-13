@@ -297,7 +297,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         }
                         else if (this.appInfo.platform === 'ios') {
                             Ionic.WebView.setServerBasePath(prefs.bundlePath);
-                            Ionic.WebView.persistServerBasePath();
+                            cordova.exec(function () { console.log('Deploy => App restart success'); }, function () { console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
                         }
                         return [2 /*return*/, true];
                 }
