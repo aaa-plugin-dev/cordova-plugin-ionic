@@ -69,22 +69,22 @@
     NSDictionary *options = command.arguments[0];
     NSString *target = options[@"target"];
     NSString *urlStr = options[@"url"];
-    NSLog(@"Got downloadFile: %@", options);
+    NSLog(@"downloadFile => Got downloadFile: %@", options);
     
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:urlStr]];
-    NSURLSession *urlSession = [NSURLSession sessionWithConfiguration:[NSURLSessionConfiguration defaultSessionConfiguration]];
-    [[urlSession dataTaskWithRequest:request completionHandler:^(NSData *data, NSURLResponse *response, NSError *error) {
+    NSOperationQueue *queue = [[NSOperationQueue alloc] init];
+    [NSURLConnection sendAsynchronousRequest:request queue:queue completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
         if (error) {
-            NSLog(@"Download Error:%@",error.description);
+            NSLog(@"downloadFile => Download Error:%@",error.description);
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [error localizedDescription]]  callbackId:command.callbackId];
         }
         if (data) {
             [[NSFileManager defaultManager] createDirectoryAtPath:[target stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
             [data writeToFile:target atomically:YES];
-            NSLog(@"File is saved to %@", target);
+            NSLog(@"downloadFile => File is saved to %@", target);
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
         }
-    }] resume];
+    }];
 }
 
 - (void) restart:(CDVInvokedUrlCommand*)command {
