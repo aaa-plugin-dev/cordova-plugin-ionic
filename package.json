@@ -1,6 +1,6 @@
 {
   "name": "@aaa-mobile/cordova-plugin-aaa-ionic",
-  "version": "5.4.7-5",
+  "version": "5.4.7-6",
   "cordova": {
     "id": "@aaa-mobile/cordova-plugin-aaa-ionic",
     "platforms": [
