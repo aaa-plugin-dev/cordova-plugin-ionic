@@ -605,7 +605,13 @@ var IonicDeployImpl = /** @class */ (function () {
                                             err_3 = _a.sent();
                                             i++;
                                             error = "" + err_3;
-                                            console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_3);
+                                            if (error.startsWith('Unable to resolve host')) {
+                                                console.log("Deploy => " + i + " Network issues with file " + entry.href + ", delay for 2 seconds");
+                                                this._wait(2000);
+                                            }
+                                            else {
+                                                console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_3);
+                                            }
                                             return [3 /*break*/, 6];
                                         case 6: return [3 /*break*/, 2];
                                         case 7:
@@ -674,6 +680,13 @@ var IonicDeployImpl = /** @class */ (function () {
                 }
             });
         });
+    };
+    IonicDeployImpl.prototype._wait = function (ms) {
+        var start = new Date().getTime();
+        var end = start;
+        while (end < start + ms) {
+            end = new Date().getTime();
+        }
     };
     IonicDeployImpl.prototype._fetchManifest = function (url) {
         return __awaiter(this, void 0, void 0, function () {
