@@ -457,8 +457,8 @@ public class IonicCordovaCommon extends CordovaPlugin {
   private void showErrorAlert(CallbackContext callbackContext, Activity activity) {
       AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.Theme_AppCompat_Light_Dialog);
 
-      builder.setTitle("Network not available")
-              .setMessage("Please check your internet connection and/or signal strength and try again or for Roadside Assistence call 800-222-4357")
+      builder.setTitle("Download Error")
+              .setMessage("Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357")
               .setCancelable(false)
               .setPositiveButton("Try Again", (dialog, which) -> {
                   dialog.dismiss();
@@ -471,10 +471,6 @@ public class IonicCordovaCommon extends CordovaPlugin {
                   activity.startActivity(callIntent);
                   callbackContext.success("CallAAA");
               })
-              .setNegativeButton("Cancel", (dialog, which) -> {
-                  dialog.dismiss();
-                  callbackContext.success("Cancel");
-              });
 
       AlertDialog dialog = builder.create();
       dialog.show();

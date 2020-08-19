@@ -97,7 +97,7 @@
 }
 
 - (void) showErrorAlert:(CDVInvokedUrlCommand*)command {
-    UIAlertController *controller = [UIAlertController alertControllerWithTitle:@"Network not available" message:@"Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357" preferredStyle:UIAlertControllerStyleAlert];
+    UIAlertController *controller = [UIAlertController alertControllerWithTitle:@"Download Error" message:@"Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357" preferredStyle:UIAlertControllerStyleAlert];
     
     UIAlertAction *buttonTryAgain = [UIAlertAction actionWithTitle:@"Try Again" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"TryAgain"];
@@ -112,12 +112,6 @@
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
     }];
     [controller addAction:buttonCallAAA];
-
-    UIAlertAction *buttonCancel = [UIAlertAction actionWithTitle:@"Cancel" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"Cancel"];
-        [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
-    }];
-    [controller addAction:buttonCancel];
        
     [self.viewController presentViewController:controller animated:YES completion:nil];
 }
