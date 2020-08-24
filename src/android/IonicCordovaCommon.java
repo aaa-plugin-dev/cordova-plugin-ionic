@@ -470,7 +470,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
                   callIntent.setData(Uri.parse("tel:18002224357"));
                   activity.startActivity(callIntent);
                   callbackContext.success("CallAAA");
-              })
+              });
 
       AlertDialog dialog = builder.create();
       dialog.show();
