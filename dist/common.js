@@ -605,7 +605,9 @@ var IonicDeployImpl = /** @class */ (function () {
                                             err_3 = _a.sent();
                                             i++;
                                             error = "" + err_3;
-                                            if (error.startsWith('Unable to resolve host')) {
+                                            // Android reports a network connection loss as: Unable to resolve host
+                                            // iOS reports a network connection lass as: The Internet connection appears to be offline
+                                            if (error.startsWith('Unable to resolve host') || error.startsWith('The Internet connection appears to be offline')) {
                                                 console.log("Deploy => " + i + " Network issues with file " + entry.href + ", delay for 2 seconds");
                                                 this._wait(2000);
                                             }
