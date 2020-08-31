@@ -9,13 +9,13 @@ export interface IAvailableUpdate {
   url: string;
   versionId: string;
   buildId: string;
+  ionicVersion: string;
 }
 
 export interface ISavedPreferences extends ICurrentConfig {
   currentVersionForAppId?: string;
   availableUpdate?: IAvailableUpdate;
   updates: { [versionId: string]: IAvailableUpdate };
-  switchToReference: boolean;
   bundlePath?: string;
 }
 

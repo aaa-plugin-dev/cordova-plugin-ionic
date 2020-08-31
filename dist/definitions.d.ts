@@ -8,6 +8,7 @@ export interface IAvailableUpdate {
     url: string;
     versionId: string;
     buildId: string;
+    ionicVersion: string;
 }
 export interface ISavedPreferences extends ICurrentConfig {
     currentVersionForAppId?: string;
@@ -15,7 +16,6 @@ export interface ISavedPreferences extends ICurrentConfig {
     updates: {
         [versionId: string]: IAvailableUpdate;
     };
-    switchToReference: boolean;
     bundlePath?: string;
 }
 export interface UpdateInfo {

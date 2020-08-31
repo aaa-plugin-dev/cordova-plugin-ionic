@@ -375,37 +375,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         }
                         prefs = this._savedPreferences;
                         appInfo = this.appInfo;
-                        // check if apoplicaiton switch to reference app
-                        // if so copy bundle file over
-                        // skip download
-                        // reloadApp()
-                        prefs.switchToReference =
-                            prefs.currentVersionId !== undefined &&
-                                prefs.currentVersionForAppId !== prefs.appId &&
-                                prefs.appId === ReferenceAppId;
                         console.log('Deploy => checkForUpdate: ' + JSON.stringify(prefs));
-                        if (!prefs.switchToReference) return [3 /*break*/, 2];
-                        delete prefs.availableUpdate;
-                        prefs.currentVersionId = 'bundle';
-                        prefs.currentVersionForAppId = ReferenceAppId;
-                        prefs.updates['bundle'] = {
-                            binaryVersionCode: prefs.binaryVersionCode,
-                            binaryVersionName: prefs.binaryVersionName,
-                            channel: prefs.channel,
-                            state: 'ready',
-                            lastUsed: '',
-                            url: '',
-                            versionId: 'bundle'
-                        };
-                        return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 1:
-                        _d.sent();
-                        return [2 /*return*/, {
-                                available: true,
-                                compatible: false,
-                                partial: false
-                            }];
-                    case 2:
                         endpoint = prefs.host + "/apps/" + prefs.appId + "/channels/check-device";
                         device_details = {
                             binary_version: prefs.binaryVersionName,
@@ -434,18 +404,17 @@ var IonicDeployImpl = /** @class */ (function () {
                             body: JSON.stringify(body)
                         });
                         return [4 /*yield*/, Promise.race([timeout, request])];
-                    case 3:
+                    case 1:
                         resp = _d.sent();
-                        jsonResp = void 0;
-                        if (!(resp.status < 500)) return [3 /*break*/, 5];
+                        if (!(resp.status < 500)) return [3 /*break*/, 3];
                         return [4 /*yield*/, resp.json()];
-                    case 4:
+                    case 2:
                         jsonResp = _d.sent();
-                        _d.label = 5;
-                    case 5:
-                        if (!resp.ok) return [3 /*break*/, 8];
+                        _d.label = 3;
+                    case 3:
+                        if (!resp.ok) return [3 /*break*/, 6];
                         checkDeviceResp = jsonResp.data;
-                        if (!(checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot)) return [3 /*break*/, 7];
+                        if (!(checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot)) return [3 /*break*/, 5];
                         prefs.availableUpdate = {
                             binaryVersionCode: prefs.binaryVersionCode,
                             binaryVersionName: prefs.binaryVersionName,
@@ -455,75 +424,81 @@ var IonicDeployImpl = /** @class */ (function () {
                             url: checkDeviceResp.url,
                             versionId: checkDeviceResp.snapshot,
                             buildId: checkDeviceResp.build || '?',
+                            ionicVersion: '',
                         };
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 6:
+                    case 4:
                         _d.sent();
-                        _d.label = 7;
-                    case 7: return [2 /*return*/, checkDeviceResp];
-                    case 8:
+                        _d.label = 5;
+                    case 5: return [2 /*return*/, checkDeviceResp];
+                    case 6:
                         _a = Error.bind;
                         _b = "Error Status " + resp.status + ": ";
-                        if (!jsonResp) return [3 /*break*/, 9];
+                        if (!jsonResp) return [3 /*break*/, 7];
                         _c = jsonResp.error.message;
-                        return [3 /*break*/, 11];
-                    case 9: return [4 /*yield*/, resp.text()];
-                    case 10:
+                        return [3 /*break*/, 9];
+                    case 7: return [4 /*yield*/, resp.text()];
+                    case 8:
                         _c = _d.sent();
-                        _d.label = 11;
-                    case 11: throw new (_a.apply(Error, [void 0, _b + (_c)]))();
+                        _d.label = 9;
+                    case 9: throw new (_a.apply(Error, [void 0, _b + (_c)]))();
                 }
             });
         });
     };
     IonicDeployImpl.prototype.downloadUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_2;
+            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_2, fullPath, ionicVersion, error_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.switchToReference) return [3 /*break*/, 2];
-                        // it is an application switch, in this case we don't download anything
-                        return [4 /*yield*/, this._copyBundleToSnapshot()];
-                    case 1:
-                        // it is an application switch, in this case we don't download anything
-                        _b.sent();
-                        return [2 /*return*/, true];
-                    case 2:
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 11];
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 12];
                         return [4 /*yield*/, Promise.all([
                                 this._fetchManifest(prefs.availableUpdate.url),
                                 this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
                             ])];
-                    case 3:
+                    case 1:
                         _a = (_b.sent())[0], fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
                         return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
-                    case 4:
+                    case 2:
                         diffedManifest = _b.sent();
-                        _b.label = 5;
-                    case 5:
-                        _b.trys.push([5, 7, , 8]);
+                        _b.label = 3;
+                    case 3:
+                        _b.trys.push([3, 5, , 6]);
                         return [4 /*yield*/, this._downloadFilesFromManifest(cancelToken, fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
-                    case 6:
+                    case 4:
                         _b.sent();
-                        return [3 /*break*/, 8];
-                    case 7:
+                        return [3 /*break*/, 6];
+                    case 5:
                         err_2 = _b.sent();
                         console.log('Deploy => CAUGHT ERROR - DOWNLOAD', err_2);
                         throw err_2;
-                    case 8:
-                        if (!cancelToken.isCancelled()) return [3 /*break*/, 9];
+                    case 6:
+                        if (!cancelToken.isCancelled()) return [3 /*break*/, 7];
                         console.log('Deploy => Download cancelled, returning');
                         cancelToken.onCancel();
                         return [2 /*return*/, false];
+                    case 7:
+                        _b.trys.push([7, 9, , 10]);
+                        fullPath = Path.join(this.getSnapshotCacheDirPath(prefs.availableUpdate.versionId), 'assets/version.txt');
+                        return [4 /*yield*/, this._fileManager.getFile(fullPath)];
+                    case 8:
+                        ionicVersion = _b.sent();
+                        prefs.availableUpdate.ionicVersion = ionicVersion;
+                        return [3 /*break*/, 10];
                     case 9:
+                        error_1 = _b.sent();
+                        prefs.availableUpdate.ionicVersion = '0.0.0';
+                        console.log("Deploy => Get ionic version error: " + error_1);
+                        return [3 /*break*/, 10];
+                    case 10:
                         prefs.availableUpdate.state = UpdateState.Pending;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 10:
+                    case 11:
                         _b.sent();
                         return [2 /*return*/, true];
-                    case 11:
+                    case 12:
                         console.log('Deploy => Nothing to download');
                         return [2 /*return*/, false];
                 }
@@ -728,7 +703,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 4:
                         try {
                             snapManifestStrings_1 = snapshotManifest.map(function (entry) { return JSON.stringify(entry); });
-                            differences = newManifest.filter(function (entry) { return snapManifestStrings_1.indexOf(JSON.stringify(entry)) === -1; });
+                            differences = newManifest.filter(function (entry) { return (entry.href === 'assets/version.txt' || snapManifestStrings_1.indexOf(JSON.stringify(entry)) === -1); });
                             // Append pro-manifest.json if there are differences
                             if (differences.length > 0) {
                                 differences.push({ href: 'pro-manifest.json', integrity: 'void', size: 0 });
@@ -770,9 +745,6 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [2 /*return*/, false];
                     case 1:
                         prefs = this._savedPreferences;
-                        if (prefs.switchToReference) {
-                            return [2 /*return*/, true];
-                        }
                         if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
                             return [2 /*return*/, false];
                         }
@@ -796,45 +768,38 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.switchToReference) return [3 /*break*/, 2];
-                        prefs.switchToReference = false;
-                        return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 1:
-                        _a.sent();
-                        _a.label = 2;
-                    case 2:
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready)) return [3 /*break*/, 4];
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready)) return [3 /*break*/, 2];
                         prefs.currentVersionId = prefs.availableUpdate.versionId;
                         prefs.currentVersionForAppId = prefs.appId;
                         delete prefs.availableUpdate;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 3:
+                    case 1:
                         _a.sent();
-                        _a.label = 4;
-                    case 4: 
+                        _a.label = 2;
+                    case 2: 
                     // Clean current version if its stale
                     return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
-                    case 5:
+                    case 3:
                         // Clean current version if its stale
                         _a.sent();
-                        if (!prefs.currentVersionId) return [3 /*break*/, 10];
+                        if (!prefs.currentVersionId) return [3 /*break*/, 8];
                         return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
-                    case 6:
-                        if (!_a.sent()) return [3 /*break*/, 9];
+                    case 4:
+                        if (!_a.sent()) return [3 /*break*/, 7];
                         console.log("Deploy => Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 7:
+                    case 5:
                         _a.sent();
                         channel.onIonicProReady.fire();
                         Ionic.WebView.persistServerBasePath();
                         return [4 /*yield*/, this.cleanupVersions()];
-                    case 8:
+                    case 6:
                         _a.sent();
                         return [2 /*return*/, false];
-                    case 9:
+                    case 7:
                         // Is the current version on the device?
-                        if (!(prefs.currentVersionId in prefs.updates) && prefs.currentVersionId !== 'bundle') {
+                        if (!(prefs.currentVersionId in prefs.updates)) {
                             console.error("Deploy => Missing version " + prefs.currentVersionId);
                             channel.onIonicProReady.fire();
                             return [2 /*return*/, false];
@@ -843,7 +808,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         console.log('Deploy => setServerBasePath: ' + newLocation);
                         Ionic.WebView.setServerBasePath(newLocation);
                         return [2 /*return*/, true];
-                    case 10:
+                    case 8:
                         channel.onIonicProReady.fire();
                         return [2 /*return*/, false];
                 }
@@ -1024,27 +989,6 @@ var IonicDeployImpl = /** @class */ (function () {
                         timer.end();
                         return [3 /*break*/, 4];
                     case 4: return [2 /*return*/];
-                }
-            });
-        });
-    };
-    IonicDeployImpl.prototype._copyBundleToSnapshot = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0: return [4 /*yield*/, this._cleanSnapshotDir('bundle')];
-                    case 1:
-                        _a.sent();
-                        return [4 /*yield*/, this._fileManager.copyTo({
-                                source: {
-                                    path: this.getBundledAppDir(),
-                                    directory: 'APPLICATION',
-                                },
-                                target: this.getSnapshotCacheDir('bundle'),
-                            })];
-                    case 2:
-                        _a.sent();
-                        return [2 /*return*/];
                 }
             });
         });

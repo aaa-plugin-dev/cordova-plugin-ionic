@@ -331,105 +331,71 @@ class IonicDeployImpl {
     const prefs = this._savedPreferences;
     const appInfo = this.appInfo;
 
-    // check if apoplicaiton switch to reference app
-    // if so copy bundle file over
-    // skip download
-    // reloadApp()
-    prefs.switchToReference =
-      prefs.currentVersionId !== undefined &&
-      prefs.currentVersionForAppId !== prefs.appId &&
-      prefs.appId === ReferenceAppId;
-
     console.log('Deploy => checkForUpdate: ' + JSON.stringify(prefs));
 
-    if (prefs.switchToReference) {
-      delete prefs.availableUpdate;
-      prefs.currentVersionId = 'bundle';
-      prefs.currentVersionForAppId = ReferenceAppId;
-      prefs.updates['bundle'] = <IAvailableUpdate>{
-        binaryVersionCode: prefs.binaryVersionCode,
-        binaryVersionName: prefs.binaryVersionName,
-        channel: prefs.channel,
-        state: 'ready',
-        lastUsed: '',
-        url: '',
-        versionId: 'bundle'
-      };
-      await this._savePrefs(prefs);
+    const endpoint = `${prefs.host}/apps/${prefs.appId}/channels/check-device`;
 
-      return <CheckForUpdateResponse>{
-        available: true,
-        compatible: false,
-        partial: false
-      };
-    } else {
-      const endpoint = `${prefs.host}/apps/${prefs.appId}/channels/check-device`;
+    const device_details = <IDeviceDetails>{
+      binary_version: prefs.binaryVersionName,
+      device_id: appInfo.device || null,
+      platform: appInfo.platform,
+      platform_version: appInfo.platformVersion
+    };
 
-      const device_details = <IDeviceDetails>{
-        binary_version: prefs.binaryVersionName,
-        device_id: appInfo.device || null,
-        platform: appInfo.platform,
-        platform_version: appInfo.platformVersion
-      };
-
-      if (prefs.currentVersionId && prefs.currentVersionId !== 'bundle') {
-        device_details.snapshot = prefs.currentVersionId;
-      }
-
-      const body = {
-        channel_name: prefs.channel,
-        app_id: prefs.appId,
-        device: device_details,
-        plugin_version: this.PLUGIN_VERSION,
-        manifest: true
-      };
-
-      const timeout = new Promise( (resolve, reject) => {
-        setTimeout(reject, 15000, 'Request timed out. The device maybe offline.');
-      });
-      const request = fetch(endpoint, {
-        method: 'POST',
-        headers: new Headers({
-          'Content-Type': 'application/json'
-        }),
-        body: JSON.stringify(body)
-      });
-
-      const resp = await (Promise.race([timeout, request]) as Promise<Response>);
-
-      let jsonResp;
-      if (resp.status < 500) {
-        jsonResp = await resp.json();
-      }
-      if (resp.ok) {
-        const checkDeviceResp: CheckForUpdateResponse = jsonResp.data;
-        if (checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot) {
-          prefs.availableUpdate = {
-            binaryVersionCode: prefs.binaryVersionCode,
-            binaryVersionName: prefs.binaryVersionName,
-            channel: prefs.channel,
-            state: UpdateState.Available,
-            lastUsed: new Date().toISOString(),
-            url: checkDeviceResp.url,
-            versionId: checkDeviceResp.snapshot,
-            buildId: checkDeviceResp.build || '?',
-          };
-          await this._savePrefs(prefs);
-        }
-        return checkDeviceResp;
-      }
-
-      throw new Error(`Error Status ${resp.status}: ${jsonResp ? jsonResp.error.message : await resp.text()}`);
+    if (prefs.currentVersionId && prefs.currentVersionId !== 'bundle') {
+      device_details.snapshot = prefs.currentVersionId;
     }
+
+    const body = {
+      channel_name: prefs.channel,
+      app_id: prefs.appId,
+      device: device_details,
+      plugin_version: this.PLUGIN_VERSION,
+      manifest: true
+    };
+
+    const timeout = new Promise( (resolve, reject) => {
+      setTimeout(reject, 15000, 'Request timed out. The device maybe offline.');
+    });
+    const request = fetch(endpoint, {
+      method: 'POST',
+      headers: new Headers({
+        'Content-Type': 'application/json'
+      }),
+      body: JSON.stringify(body)
+    });
+
+    const resp = await (Promise.race([timeout, request]) as Promise<Response>);
+
+    let jsonResp;
+    if (resp.status < 500) {
+      jsonResp = await resp.json();
+    }
+    if (resp.ok) {
+      const checkDeviceResp: CheckForUpdateResponse = jsonResp.data;
+      if (checkDeviceResp.available && checkDeviceResp.url && checkDeviceResp.snapshot) {
+        prefs.availableUpdate = {
+          binaryVersionCode: prefs.binaryVersionCode,
+          binaryVersionName: prefs.binaryVersionName,
+          channel: prefs.channel,
+          state: UpdateState.Available,
+          lastUsed: new Date().toISOString(),
+          url: checkDeviceResp.url,
+          versionId: checkDeviceResp.snapshot,
+          buildId: checkDeviceResp.build || '?',
+          ionicVersion: '',
+        };
+        await this._savePrefs(prefs);
+      }
+      return checkDeviceResp;
+    }
+
+    throw new Error(`Error Status ${resp.status}: ${jsonResp ? jsonResp.error.message : await resp.text()}`);
   }
 
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
     const prefs = this._savedPreferences;
-    if (prefs.switchToReference) {
-      // it is an application switch, in this case we don't download anything
-      await this._copyBundleToSnapshot();
-      return true;
-    } else if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
+    if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
       const [{ fileBaseUrl, manifestJson }] = await Promise.all([
         this._fetchManifest(prefs.availableUpdate.url),
         this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
@@ -453,6 +419,16 @@ class IonicDeployImpl {
         cancelToken.onCancel();
         return false;
       } else {
+
+        try {
+          const fullPath = Path.join(this.getSnapshotCacheDirPath(prefs.availableUpdate.versionId), 'assets/version.txt');
+          const ionicVersion = await this._fileManager.getFile(fullPath);
+          prefs.availableUpdate.ionicVersion = ionicVersion;
+        } catch (error) {
+          prefs.availableUpdate.ionicVersion = '0.0.0';
+          console.log(`Deploy => Get ionic version error: ${error}`);
+        }
+
         prefs.availableUpdate.state = UpdateState.Pending;
         await this._savePrefs(prefs);
         return true;
@@ -582,7 +558,7 @@ class IonicDeployImpl {
 
     try {
       const snapManifestStrings = snapshotManifest.map(entry => JSON.stringify(entry));
-      const differences = newManifest.filter(entry => snapManifestStrings.indexOf(JSON.stringify(entry)) === -1);
+      const differences = newManifest.filter(entry => (entry.href === 'assets/version.txt' ||  snapManifestStrings.indexOf(JSON.stringify(entry)) === -1));
 
       // Append pro-manifest.json if there are differences
       if (differences.length > 0) {
@@ -609,10 +585,6 @@ class IonicDeployImpl {
     } else {
       const prefs = this._savedPreferences;
 
-      if (prefs.switchToReference) {
-        return true;
-      }
-
       if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
         return false;
       }
@@ -630,11 +602,6 @@ class IonicDeployImpl {
 
   async reloadApp(): Promise<boolean> {
     const prefs = this._savedPreferences;
-
-    if (prefs.switchToReference) {
-      prefs.switchToReference = false;
-      await this._savePrefs(prefs);
-    }
 
     // Save the current update if it's ready
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready) {
@@ -661,7 +628,7 @@ class IonicDeployImpl {
       }
 
       // Is the current version on the device?
-      if (!(prefs.currentVersionId in prefs.updates) && prefs.currentVersionId !== 'bundle') {
+      if (!(prefs.currentVersionId in prefs.updates)) {
         console.error(`Deploy => Missing version ${prefs.currentVersionId}`);
         channel.onIonicProReady.fire();
         return false;
@@ -799,17 +766,6 @@ class IonicDeployImpl {
       console.log('Deploy => No directory found for snapshot no need to delete');
       timer.end();
     }
-  }
-
-  private async _copyBundleToSnapshot() {
-      await this._cleanSnapshotDir('bundle');
-      await this._fileManager.copyTo({
-        source: {
-          path: this.getBundledAppDir(),
-          directory: 'APPLICATION',
-        },
-        target: this.getSnapshotCacheDir('bundle'),
-      });
   }
 
   private async _copyBaseAppDir(versionId: string) {
