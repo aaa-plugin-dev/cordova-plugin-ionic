@@ -489,7 +489,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [3 /*break*/, 10];
                     case 9:
                         error_1 = _b.sent();
-                        prefs.availableUpdate.ionicVersion = '0.0.0';
+                        delete prefs.availableUpdate.ionicVersion;
                         console.log("Deploy => Get ionic version error: " + error_1);
                         return [3 /*break*/, 10];
                     case 10:

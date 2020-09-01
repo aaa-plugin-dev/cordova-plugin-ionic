@@ -425,7 +425,7 @@ class IonicDeployImpl {
           const ionicVersion = await this._fileManager.getFile(fullPath);
           prefs.availableUpdate.ionicVersion = ionicVersion;
         } catch (error) {
-          prefs.availableUpdate.ionicVersion = '0.0.0';
+          delete prefs.availableUpdate.ionicVersion;
           console.log(`Deploy => Get ionic version error: ${error}`);
         }
 
