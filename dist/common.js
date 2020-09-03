@@ -274,25 +274,26 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.resetToBundle = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var customPrefs, prefs;
+            var prefs, customPrefs;
             return __generator(this, function (_a) {
-                customPrefs = {
-                    appId: ReferenceAppId
-                };
-                this.configure(customPrefs);
-                prefs = this._savedPreferences;
-                if (this.appInfo.platform === 'android') {
-                    Ionic.WebView.setServerBasePath('');
-                    Ionic.WebView.persistServerBasePath();
+                switch (_a.label) {
+                    case 0:
+                        prefs = this._savedPreferences;
+                        customPrefs = {
+                            appId: ReferenceAppId
+                        };
+                        return [4 /*yield*/, this.configure(customPrefs)];
+                    case 1:
+                        _a.sent();
+                        if (this.appInfo.platform === 'ios') {
+                            Ionic.WebView.setServerBasePath(prefs.bundlePath);
+                        }
+                        cordova.exec(function () {
+                            console.log('Deploy => App resetToBundle success');
+                            cordova.exec(function () { return console.log('Deploy => App restart success'); }, function () { return console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
+                        }, function () { return console.log('Deploy => App resetToBundle fail'); }, 'IonicCordovaCommon', 'resetToBundle');
+                        return [2 /*return*/, true];
                 }
-                else if (this.appInfo.platform === 'ios') {
-                    Ionic.WebView.setServerBasePath(prefs.bundlePath);
-                }
-                cordova.exec(function () {
-                    console.log('Deploy => App resetToBundle success');
-                    cordova.exec(function () { return console.log('Deploy => App restart success'); }, function () { return console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
-                }, function () { return console.log('Deploy => App resetToBundle fail'); }, 'IonicCordovaCommon', 'resetToBundle');
-                return [2 /*return*/, true];
             });
         });
     };

@@ -250,22 +250,19 @@ class IonicDeployImpl {
   }
 
   async resetToBundle(): Promise<boolean> {
+    const prefs = this._savedPreferences;
     const customPrefs = {
       appId: ReferenceAppId
     };
-    this.configure(customPrefs);
-    const prefs = this._savedPreferences;
+    await this.configure(customPrefs);
 
-    if (this.appInfo.platform === 'android') {
-      Ionic.WebView.setServerBasePath('');
-      Ionic.WebView.persistServerBasePath();
-    } else if (this.appInfo.platform === 'ios') {
+    if (this.appInfo.platform === 'ios') {
         Ionic.WebView.setServerBasePath(prefs.bundlePath);
     }
 
     cordova.exec(
       () => {
-        console.log('Deploy => App resetToBundle success'); 
+        console.log('Deploy => App resetToBundle success');
         cordova.exec(
           () => console.log('Deploy => App restart success'),
           () => console.log('Deploy => App restart fail'),
