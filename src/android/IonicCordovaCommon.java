@@ -445,20 +445,20 @@ public class IonicCordovaCommon extends CordovaPlugin {
   private void resetToBundle(CallbackContext callbackContext) {
     SharedPreferences prefs = cordova.getContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     String prefsString = prefs.getString("ionicDeploySavedPreferences", null);
-
     JSONObject customPrefs = new JSONObject();
-    if (prefsString != null) {
-      try {
-        customPrefs = new JSONObject(prefsString);
-      } catch (JSONException e) {
-        Log.e(TAG, "VersionCheck => Ionic Prefs Json Error: " + e.getMessage(), e);
+    
+    try {
+      if (prefsString != null) {
+          customPrefs = new JSONObject(prefsString);
       }
-    }
 
-    customPrefs.remove("availableUpdate");
-    customPrefs.remove("updates");
-    customPrefs.remove("currentVersionId");
-    customPrefs.remove("currentVersionForAppId");
+      customPrefs.remove("availableUpdate");
+      customPrefs.put("updates", new JSONObject());
+      customPrefs.remove("currentVersionId");
+      customPrefs.remove("currentVersionForAppId");
+    } catch (JSONException e) {
+      Log.e(TAG, "VersionCheck => Ionic Prefs Json Error: " + e.getMessage(), e);
+    }
 
     SharedPreferences.Editor prefsEdit = prefs.edit();
     prefsEdit.putString("ionicDeploySavedPreferences", customPrefs.toString());

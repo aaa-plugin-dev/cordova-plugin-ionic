@@ -99,7 +99,7 @@
     NSDictionary *immutableStoredPrefs = [prefs objectForKey:@"ionicDeploySavedPreferences"];
     NSMutableDictionary *savedPrefs = [immutableStoredPrefs mutableCopy];
     [savedPrefs removeObjectForKey:@"availableUpdate"];
-    [savedPrefs removeObjectForKey:@"updates"];
+    [savedPrefs setObject:[[NSDictionary alloc] init] forKey:@"updates"];
     [savedPrefs removeObjectForKey:@"currentVersionId"];
     [savedPrefs removeObjectForKey:@"currentVersionForAppId"];
     [prefs setObject:savedPrefs forKey:@"ionicDeploySavedPreferences"];
