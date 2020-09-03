@@ -276,31 +276,23 @@ var IonicDeployImpl = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var customPrefs, prefs;
             return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        customPrefs = {
-                            appId: ReferenceAppId
-                        };
-                        this.configure(customPrefs);
-                        prefs = this._savedPreferences;
-                        delete prefs.availableUpdate;
-                        delete prefs.currentVersionId;
-                        delete prefs.currentVersionForAppId;
-                        prefs.updates = {};
-                        return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 1:
-                        _a.sent();
-                        if (this.appInfo.platform === 'android') {
-                            Ionic.WebView.setServerBasePath('');
-                            Ionic.WebView.persistServerBasePath();
-                            cordova.exec(function () { console.log('Deploy => App restart success'); }, function () { console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
-                        }
-                        else if (this.appInfo.platform === 'ios') {
-                            Ionic.WebView.setServerBasePath(prefs.bundlePath);
-                            cordova.exec(function () { console.log('Deploy => App restart success'); }, function () { console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
-                        }
-                        return [2 /*return*/, true];
+                customPrefs = {
+                    appId: ReferenceAppId
+                };
+                this.configure(customPrefs);
+                prefs = this._savedPreferences;
+                if (this.appInfo.platform === 'android') {
+                    Ionic.WebView.setServerBasePath('');
+                    Ionic.WebView.persistServerBasePath();
                 }
+                else if (this.appInfo.platform === 'ios') {
+                    Ionic.WebView.setServerBasePath(prefs.bundlePath);
+                }
+                cordova.exec(function () {
+                    console.log('Deploy => App resetToBundle success');
+                    cordova.exec(function () { return console.log('Deploy => App restart success'); }, function () { return console.log('Deploy => App restart fail'); }, 'IonicCordovaCommon', 'restart');
+                }, function () { return console.log('Deploy => App resetToBundle fail'); }, 'IonicCordovaCommon', 'resetToBundle');
+                return [2 /*return*/, true];
             });
         });
     };

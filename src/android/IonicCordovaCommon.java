@@ -111,6 +111,8 @@ public class IonicCordovaCommon extends CordovaPlugin {
 
     } else if (action.equals("restart")) {
       this.restart();
+    } else if (action.equals("resetToBundle")) {
+      this.resetToBundle(callbackContext);
     } else if (action.equals("showErrorAlert")) {
       this.showErrorAlert(callbackContext);
     } else {
@@ -438,6 +440,38 @@ public class IonicCordovaCommon extends CordovaPlugin {
           }
       }
     });
+  }
+
+  private void resetToBundle(CallbackContext callbackContext) {
+    SharedPreferences prefs = cordova.getContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
+    String prefsString = prefs.getString("ionicDeploySavedPreferences", null);
+
+    JSONObject customPrefs = new JSONObject();
+    if (prefsString != null) {
+      try {
+        customPrefs = new JSONObject(prefsString);
+      } catch (JSONException e) {
+        Log.e(TAG, "VersionCheck => Ionic Prefs Json Error: " + e.getMessage(), e);
+      }
+    }
+
+    customPrefs.remove("availableUpdate");
+    customPrefs.remove("updates");
+    customPrefs.remove("currentVersionId");
+    customPrefs.remove("currentVersionForAppId");
+
+    SharedPreferences.Editor prefsEdit = prefs.edit();
+    prefsEdit.putString("ionicDeploySavedPreferences", customPrefs.toString());
+    prefsEdit.apply();
+
+    SharedPreferences webViewPrefs = cordova.getContext().getSharedPreferences("WebViewSettings", Activity.MODE_PRIVATE);
+    SharedPreferences.Editor webViewPrefsEdit = webViewPrefs.edit();
+    webViewPrefsEdit.remove("serverBasePath");
+    webViewPrefsEdit.apply();
+
+    PluginResult result = new PluginResult(PluginResult.Status.OK);
+    result.setKeepCallback(false);
+    callbackContext.sendPluginResult(result);
   }
 
   public void showErrorAlert(CallbackContext callbackContext) {

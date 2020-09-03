@@ -88,9 +88,26 @@
 }
 
 - (void) restart:(CDVInvokedUrlCommand*)command {
-    NSUserDefaults* userDefaults = [NSUserDefaults standardUserDefaults];
-    [userDefaults removeObjectForKey:@"serverBasePath"];
-    [userDefaults synchronize];
+    CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
+    [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
+}
+
+- (void) resetToBundle:(CDVInvokedUrlCommand*)command {
+    NSUserDefaults *prefs = [NSUserDefaults standardUserDefaults];
+    
+    // Remove currentVersionId preference
+    NSDictionary *immutableStoredPrefs = [prefs objectForKey:@"ionicDeploySavedPreferences"];
+    NSMutableDictionary *savedPrefs = [immutableStoredPrefs mutableCopy];
+    [savedPrefs removeObjectForKey:@"availableUpdate"];
+    [savedPrefs removeObjectForKey:@"updates"];
+    [savedPrefs removeObjectForKey:@"currentVersionId"];
+    [savedPrefs removeObjectForKey:@"currentVersionForAppId"];
+    [prefs setObject:savedPrefs forKey:@"ionicDeploySavedPreferences"];
+    
+    // Reset WebView back to bundled
+    [prefs setObject:@"" forKey:@"serverBasePath"];
+    
+    [[NSUserDefaults standardUserDefaults] synchronize];
 
     CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK];
     [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
