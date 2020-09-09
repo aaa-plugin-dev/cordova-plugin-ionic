@@ -1372,6 +1372,9 @@ var IonicDeploy = /** @class */ (function () {
                     case 0: return [4 /*yield*/, this._initPreferences()];
                     case 1:
                         preferences = _a.sent();
+                        if (!preferences.updates) {
+                            preferences.updates = {};
+                        }
                         this.minBackgroundDuration = preferences.minBackgroundDuration;
                         this.disabled = preferences.disabled || !this.fetchIsAvailable;
                         return [4 /*yield*/, this.parent.getAppDetails()];

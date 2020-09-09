@@ -1015,6 +1015,9 @@ class IonicDeploy implements IDeployPluginAPI {
 
   async initialize() {
     const preferences = await this._initPreferences();
+    if (!preferences.updates) {
+      preferences.updates = {};
+    }
     this.minBackgroundDuration = preferences.minBackgroundDuration;
     this.disabled = preferences.disabled || !this.fetchIsAvailable;
     const appInfo = await this.parent.getAppDetails();
