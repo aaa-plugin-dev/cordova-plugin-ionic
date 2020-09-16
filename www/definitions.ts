@@ -9,7 +9,7 @@ export interface IAvailableUpdate {
   url: string;
   versionId: string;
   buildId: string;
-  ionicVersion: string;
+  ionicVersion?: string;
 }
 
 export interface ISavedPreferences extends ICurrentConfig {

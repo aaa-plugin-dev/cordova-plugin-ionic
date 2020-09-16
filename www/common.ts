@@ -87,7 +87,6 @@ class IonicDeployImpl {
   ];
 
   private integrityCheckTimeout: any;
-  private integrityCheckForceValid = false;
 
   constructor(appInfo: IAppInfo, preferences: ISavedPreferences) {
     this.appInfo = appInfo;
@@ -107,40 +106,41 @@ class IonicDeployImpl {
 
   async checkCoreIntegrity(): Promise<boolean> {
     if (this._savedPreferences.currentVersionId) {
-      const manifest = await this.getSnapshotManifest(<string>this._savedPreferences.currentVersionId);
-      const integrityChecks: ManifestFileEntry[] = [];
+      try {
+        const manifest = await this.getSnapshotManifest(<string>this._savedPreferences.currentVersionId);
+        const integrityChecks: ManifestFileEntry[] = [];
 
-      manifest.some((file) => {
-        if (integrityChecks.length >= this.coreFiles.length) {
-          return true;
+        if (!manifest || manifest.length === 0) {
+          return false;
         }
 
-        this.coreFiles.some((coreFile) => {
+        manifest.some((file) => {
           if (integrityChecks.length >= this.coreFiles.length) {
             return true;
           }
+          this.coreFiles.some((coreFile) => {
+            if (integrityChecks.length >= this.coreFiles.length) {
+              return true;
+            }
+        
+            const regxp = new RegExp(coreFile);
+            if (regxp.test(file.href)) {
+              integrityChecks.push(file);
+            }
 
-          const regxp = new RegExp(coreFile);
-          if (regxp.test(file.href)) {
-            integrityChecks.push(file);
-          }
+            return false;
+          });
 
           return false;
         });
 
-        return false;
-      });
-
-      try {
         await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
       } catch (err) {
         this.sendEvent('onIntegrityCheckFailed', {
           type: 'coreIntegrity'
         });
-        throw err;
+        return false;
       }
-
-      return true;
     }
 
     return true;
@@ -192,20 +192,14 @@ class IonicDeployImpl {
     // }
   }
 
-  async _handleInitialPreferenceState() {
-    // 6 seconds after startup, check core file integrity
-    // this timeout is cleared if 'configure' is called (because clearly file integrity is fine if configure was called)
-    this.integrityCheckTimeout = setTimeout(() => {
-      console.log('Deploy => CoreFileIntegrityCheck - Starting');
-      this.checkCoreIntegrity()
-        .then(() => console.log('Deploy => CoreFileIntegrityCheck - Success')) // do nothing, integrity is fine... )
-        .catch((err) => {
-          console.log('Deploy => CoreFileIntegrityCheck - Failed', err);
-          if (!this.integrityCheckForceValid) {
-            this.sendEvent('onCoreFileIntegrityCheckFailed', {});
-          }
-        });
-    }, 6000);
+  async _handleInitialPreferenceState() {    
+    const isSnapshotGood = await this.checkCoreIntegrity();
+    console.log(`Deploy => Snapshop folder is: ${isSnapshotGood}`)
+    if (!isSnapshotGood) {
+      this.sendEvent('onCoreFileIntegrityCheckFailed', {});
+      this.resetToBundle();
+      return;
+    }
 
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
@@ -304,7 +298,6 @@ class IonicDeployImpl {
 
   async configure(config: IDeployConfig) {
     clearTimeout(this.integrityCheckTimeout);
-    this.integrityCheckForceValid = true;
 
     if (!isPluginConfig(config)) {
       throw new Error('Invalid Config Object');

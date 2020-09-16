@@ -93,7 +93,6 @@ var IonicDeployImpl = /** @class */ (function () {
             /cordova\.(\w)*\.js/,
             /main\.(\w)*\.js/,
         ];
-        this.integrityCheckForceValid = false;
         this.appInfo = appInfo;
         this._savedPreferences = preferences;
     }
@@ -113,11 +112,17 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!this._savedPreferences.currentVersionId) return [3 /*break*/, 6];
-                        return [4 /*yield*/, this.getSnapshotManifest(this._savedPreferences.currentVersionId)];
+                        if (!this._savedPreferences.currentVersionId) return [3 /*break*/, 5];
+                        _a.label = 1;
                     case 1:
+                        _a.trys.push([1, 4, , 5]);
+                        return [4 /*yield*/, this.getSnapshotManifest(this._savedPreferences.currentVersionId)];
+                    case 2:
                         manifest = _a.sent();
                         integrityChecks_1 = [];
+                        if (!manifest || manifest.length === 0) {
+                            return [2 /*return*/, false];
+                        }
                         manifest.some(function (file) {
                             if (integrityChecks_1.length >= _this.coreFiles.length) {
                                 return true;
@@ -134,9 +139,6 @@ var IonicDeployImpl = /** @class */ (function () {
                             });
                             return false;
                         });
-                        _a.label = 2;
-                    case 2:
-                        _a.trys.push([2, 4, , 5]);
                         return [4 /*yield*/, Promise.all(integrityChecks_1.map(function (file) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
                                 return [2 /*return*/, this.checkFileIntegrity(file, this._savedPreferences.currentVersionId)];
                             }); }); }))];
@@ -148,9 +150,8 @@ var IonicDeployImpl = /** @class */ (function () {
                         this.sendEvent('onIntegrityCheckFailed', {
                             type: 'coreIntegrity'
                         });
-                        throw err_1;
+                        return [2 /*return*/, false];
                     case 5: return [2 /*return*/, true];
-                    case 6: return [2 /*return*/, true];
                 }
             });
         });
@@ -193,24 +194,18 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._handleInitialPreferenceState = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var isOnline, updateMethod, _a, cancelToken, e_1, cancelToken;
-            var _this = this;
+            var isSnapshotGood, isOnline, updateMethod, _a, cancelToken, e_1, cancelToken;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0:
-                        // 6 seconds after startup, check core file integrity
-                        // this timeout is cleared if 'configure' is called (because clearly file integrity is fine if configure was called)
-                        this.integrityCheckTimeout = setTimeout(function () {
-                            console.log('Deploy => CoreFileIntegrityCheck - Starting');
-                            _this.checkCoreIntegrity()
-                                .then(function () { return console.log('Deploy => CoreFileIntegrityCheck - Success'); }) // do nothing, integrity is fine... )
-                                .catch(function (err) {
-                                console.log('Deploy => CoreFileIntegrityCheck - Failed', err);
-                                if (!_this.integrityCheckForceValid) {
-                                    _this.sendEvent('onCoreFileIntegrityCheckFailed', {});
-                                }
-                            });
-                        }, 6000);
+                    case 0: return [4 /*yield*/, this.checkCoreIntegrity()];
+                    case 1:
+                        isSnapshotGood = _b.sent();
+                        console.log("Deploy => Snapshop folder is: " + isSnapshotGood);
+                        if (!isSnapshotGood) {
+                            this.sendEvent('onCoreFileIntegrityCheckFailed', {});
+                            this.resetToBundle();
+                            return [2 /*return*/];
+                        }
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
@@ -220,42 +215,42 @@ var IonicDeployImpl = /** @class */ (function () {
                         updateMethod = this._savedPreferences.updateMethod;
                         _a = updateMethod;
                         switch (_a) {
-                            case UpdateMethod.AUTO: return [3 /*break*/, 1];
-                            case UpdateMethod.NONE: return [3 /*break*/, 7];
+                            case UpdateMethod.AUTO: return [3 /*break*/, 2];
+                            case UpdateMethod.NONE: return [3 /*break*/, 8];
                         }
-                        return [3 /*break*/, 8];
-                    case 1:
+                        return [3 /*break*/, 9];
+                    case 2:
                         // NOTE: call sync with background as override to avoid sync
                         // reloading the app and manually reload always once sync has
                         // set the correct currentVersionId
                         console.log('Deploy => calling _sync');
-                        _b.label = 2;
-                    case 2:
-                        _b.trys.push([2, 4, , 5]);
+                        _b.label = 3;
+                    case 3:
+                        _b.trys.push([3, 5, , 6]);
                         cancelToken = new tokens_1.CancelToken();
                         return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken)];
-                    case 3:
-                        _b.sent();
-                        return [3 /*break*/, 5];
                     case 4:
+                        _b.sent();
+                        return [3 /*break*/, 6];
+                    case 5:
                         e_1 = _b.sent();
                         console.warn("Deploy => " + e_1);
                         console.warn('Deploy => Sync failed. Defaulting to last available version.');
-                        return [3 /*break*/, 5];
-                    case 5:
+                        return [3 /*break*/, 6];
+                    case 6:
                         console.log('Deploy => calling _reload');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 6:
+                    case 7:
                         _b.sent();
                         console.log('Deploy => done _reloading');
-                        return [3 /*break*/, 10];
-                    case 7:
+                        return [3 /*break*/, 11];
+                    case 8:
                         this.reloadApp();
-                        return [3 /*break*/, 10];
-                    case 8: 
+                        return [3 /*break*/, 11];
+                    case 9: 
                     // NOTE: default anything that doesn't explicitly match to background updates
                     return [4 /*yield*/, this.reloadApp()];
-                    case 9:
+                    case 10:
                         // NOTE: default anything that doesn't explicitly match to background updates
                         _b.sent();
                         try {
@@ -267,7 +262,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             console.warn('Deploy => Background sync failed. Unable to check for new updates.');
                         }
                         return [2 /*return*/];
-                    case 10: return [2 /*return*/];
+                    case 11: return [2 /*return*/];
                 }
             });
         });
@@ -340,7 +335,6 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         clearTimeout(this.integrityCheckTimeout);
-                        this.integrityCheckForceValid = true;
                         if (!guards_1.isPluginConfig(config)) {
                             throw new Error('Invalid Config Object');
                         }
