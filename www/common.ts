@@ -78,12 +78,18 @@ class IonicDeployImpl {
   private MANIFEST_FILE = 'pro-manifest.json';
   public PLUGIN_VERSION = '5.4.7';
 
-  private coreFiles = [
-    /runtime\.(\w)*\.js/,
-    /polyfills-(\w)*\.(\w)*\.js/,
-    /polyfills\.(\w)*\.js/,
-    /cordova\.(\w)*\.js/,
-    /main\.(\w)*\.js/,
+  private coreIonic5Files = [
+    /^runtime\.(\w)*\.js/,
+    /^polyfills-(\w)*\.(\w)*\.js/,
+    /^polyfills\.(\w)*\.js/,
+    /^cordova\.(\w)*\.js/,
+    /^main\.(\w)*\.js/,
+  ];
+
+  private coreIonic3Files = [
+    /build\/main\.((\w)*\.){0,1}js/,
+    /build\/vendor.((\w)*\.){0,1}js/,
+    /build\/polyfills\.js/,
   ];
 
   private integrityCheckTimeout: any;
@@ -94,7 +100,7 @@ class IonicDeployImpl {
   }
 
   isCoreFile(file: ManifestFileEntry): boolean {
-    return this.coreFiles.some((coreFile) => {
+    return this.coreIonic5Files.some((coreFile) => {
       const regxp = new RegExp(coreFile);
       if (regxp.test(file.href)) {
         return true;
@@ -107,35 +113,27 @@ class IonicDeployImpl {
   async checkCoreIntegrity(): Promise<boolean> {
     if (this._savedPreferences.currentVersionId) {
       try {
-        const manifest = await this.getSnapshotManifest(<string>this._savedPreferences.currentVersionId);
-        const integrityChecks: ManifestFileEntry[] = [];
+        const manifest = await this.getSnapshotManifest(this._savedPreferences.currentVersionId);
 
         if (!manifest || manifest.length === 0) {
+          console.log('Deploy => checkCoreIntegrity false because no manifest file');
           return false;
         }
 
-        manifest.some((file) => {
-          if (integrityChecks.length >= this.coreFiles.length) {
-            return true;
-          }
-          this.coreFiles.some((coreFile) => {
-            if (integrityChecks.length >= this.coreFiles.length) {
-              return true;
-            }
-        
-            const regxp = new RegExp(coreFile);
-            if (regxp.test(file.href)) {
-              integrityChecks.push(file);
-            }
+        let integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic5Files);
+        if (integrityChecks.length === 0) {
+          console.log('Deploy => Ionic app is Ionic 3 app get this files');
+          integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic3Files);
+        }
 
-            return false;
-          });
-
-          return false;
-        });
+        if (integrityChecks.length === 0) {
+          console.log('Deploy => No core files to check, weired...');
+          return true;
+        }
 
         await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
-      } catch (err) {
+      } catch (error) {
+        console.log(`Deploy => Core File Check Error: ${error}`);
         this.sendEvent('onIntegrityCheckFailed', {
           type: 'coreIntegrity'
         });
@@ -144,6 +142,31 @@ class IonicDeployImpl {
     }
 
     return true;
+  }
+
+  private filterIonicCoreFies(manifest: ManifestFileEntry[], coreFiles: RegExp[]): ManifestFileEntry[] {
+    const integrityChecks: ManifestFileEntry[] = [];
+    manifest.some((file) => {
+      if (integrityChecks.length >= coreFiles.length) {
+        return true;
+      }
+      coreFiles.some((coreFile) => {
+        if (integrityChecks.length >= coreFiles.length) {
+          return true;
+        }
+    
+        const regxp = new RegExp(coreFile);
+        if (regxp.test(file.href)) {
+          integrityChecks.push(file);
+        }
+
+        return false;
+      });
+
+      return false;
+    });
+
+    return integrityChecks;
   }
 
   async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<any> {
@@ -158,7 +181,7 @@ class IonicDeployImpl {
 
     if (file.href === 'index.html') {
       if (fileSize === 0) {
-        throw new Error('File size integrity does not match.');
+        throw new Error(`File size integrity does not match for ${file.href}.`);
       }
       fileSizesMatch = true; // AppFlow build updates index.html after manifest was created, file sizes never match
     } else {
@@ -168,7 +191,7 @@ class IonicDeployImpl {
           type: 'integrity',
           file: file.href
         });
-        throw new Error('File size integrity does not match.');
+        throw new Error(`File size integrity does not match for ${file.href}.`);
       }
     }
 
@@ -197,7 +220,7 @@ class IonicDeployImpl {
     console.log(`Deploy => Snapshop folder is: ${isSnapshotGood}`)
     if (!isSnapshotGood) {
       this.sendEvent('onCoreFileIntegrityCheckFailed', {});
-      this.resetToBundle();
+      await this.resetToBundle();
       return;
     }
 
@@ -801,20 +824,20 @@ class IonicDeployImpl {
 
   async parseManifestFile(dir: string): Promise<ManifestFileEntry[]> {
     let fileContents = '[]';
-
+    let filePath = '';
     try {
-      fileContents = await this._fileManager.getFile(
-        Path.join(dir, this.MANIFEST_FILE)
-      );
+      filePath = Path.join(dir, this.MANIFEST_FILE);
+
+      fileContents = await this._fileManager.getFileWithPlatform(filePath, this.appInfo.platform);
     } catch (err) {
-      // do nothing, use fresh
+      console.error(`Deploy => Get pro-manifest file content: ${err}`);
     }
 
     try {
       const manifest = JSON.parse(<string>fileContents);
       return manifest;
     } catch (err) {
-      console.error('Deploy => Could not parse JSON:', fileContents);
+      console.error('Deploy => Could not parse JSON: ' + fileContents);
     }
 
     return [];
@@ -970,7 +993,17 @@ class FileManager {
   }
 
   async getFile(fullPath: string): Promise<string> {
-    const normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+    let normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+    const req = await fetch(normalizedURL);
+    return req.text();
+  }
+
+  async getFileWithPlatform(fullPath: string, platform: string): Promise<string> {
+    let normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+    if (normalizedURL.startsWith('undefined')) {
+      const prefix = platform === 'ios' ? 'ionic://localhost' : 'http://localhost';
+      normalizedURL = normalizedURL.replace('undefined', prefix);
+    }
     const req = await fetch(normalizedURL);
     return req.text();
   }
