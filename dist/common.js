@@ -760,6 +760,9 @@ var IonicDeployImpl = /** @class */ (function () {
                             progress(100);
                         }
                         prefs.availableUpdate.state = UpdateState.Ready;
+                        if (!prefs.updates) {
+                            prefs.updates = {};
+                        }
                         prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 2:
@@ -807,6 +810,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [2 /*return*/, false];
                     case 7:
                         // Is the current version on the device?
+                        if (!prefs.updates) {
+                            prefs.updates = {};
+                        }
                         if (!(prefs.currentVersionId in prefs.updates)) {
                             console.error("Deploy => Missing version " + prefs.currentVersionId);
                             channel.onIonicProReady.fire();
@@ -839,6 +845,9 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 0:
                         prefs = this._savedPreferences;
                         if (!prefs.currentVersionId) return [3 /*break*/, 17];
+                        if (!prefs.updates) {
+                            prefs.updates = {};
+                        }
                         _a = !this.isCurrentVersion(prefs.updates[prefs.currentVersionId]);
                         if (!_a) return [3 /*break*/, 2];
                         return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
@@ -1039,6 +1048,9 @@ var IonicDeployImpl = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             var update;
             return __generator(this, function (_a) {
+                if (!this._savedPreferences.updates) {
+                    this._savedPreferences.updates = {};
+                }
                 update = this._savedPreferences.updates[versionId];
                 if (!update) {
                     return [2 /*return*/];
@@ -1108,9 +1120,11 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.getAvailableVersions = function () {
         return __awaiter(this, void 0, void 0, function () {
+            var updates;
             var _this = this;
             return __generator(this, function (_a) {
-                return [2 /*return*/, Object.keys(this._savedPreferences.updates).map(function (k) { return _this._convertToSnapshotInfo(_this._savedPreferences.updates[k]); })];
+                updates = this._savedPreferences.updates || {};
+                return [2 /*return*/, Object.keys(updates).map(function (k) { return _this._convertToSnapshotInfo(updates[k]); })];
             });
         });
     };
@@ -1125,7 +1139,9 @@ var IonicDeployImpl = /** @class */ (function () {
                             throw Error("Can't delete version with id: " + versionId + " as it is the current version.");
                         }
                         console.log("Deploy => Deploy => Deleting ionic snapshot " + versionId + ".");
-                        delete prefs.updates[versionId];
+                        if (prefs.updates) {
+                            delete prefs.updates[versionId];
+                        }
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 1:
                         _a.sent();
@@ -1142,6 +1158,9 @@ var IonicDeployImpl = /** @class */ (function () {
     IonicDeployImpl.prototype.getStoredUpdates = function () {
         // get an array of stored updates minus current deployed one
         var prefs = this._savedPreferences;
+        if (!prefs.updates) {
+            prefs.updates = {};
+        }
         var updates = [];
         for (var _i = 0, _a = Object.keys(prefs.updates); _i < _a.length; _i++) {
             var versionId = _a[_i];

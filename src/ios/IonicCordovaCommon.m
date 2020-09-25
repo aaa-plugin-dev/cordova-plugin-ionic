@@ -211,7 +211,7 @@
 - (NSMutableDictionary*) getNativeConfig {
     // Get preferences from cordova
     NSString *appId = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonAppId"]];
-    NSNumber * disabled = [NSNumber numberWithBool:[[self.commandDelegate.settings objectForKey:[@"DisableDeploy" lowercaseString]] boolValue]];
+    NSNumber *disabled = [NSNumber numberWithBool:[[self.commandDelegate.settings objectForKey:[@"DisableDeploy" lowercaseString]] boolValue]];
     NSString *host = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonApi"]];
     NSString *updateMethod = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonUpdateMethod"]];
     NSString *channel = [NSString stringWithFormat:@"%@", [[NSBundle mainBundle] objectForInfoDictionaryKey:@"IonChannelName"]];
@@ -225,6 +225,7 @@
     json[@"appId"] = appId;
     json[@"disabled"] = disabled;
     json[@"channel"] = channel;
+    json[@"nativeChannel"] = channel;
     json[@"host"] = host;
     json[@"updateMethod"] = updateMethod;
     json[@"maxVersions"] = maxV;

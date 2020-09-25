@@ -13,7 +13,7 @@ export interface IAvailableUpdate {
 export interface ISavedPreferences extends ICurrentConfig {
     currentVersionForAppId?: string;
     availableUpdate?: IAvailableUpdate;
-    updates: {
+    updates?: {
         [versionId: string]: IAvailableUpdate;
     };
     bundlePath?: string;

@@ -603,6 +603,9 @@ class IonicDeployImpl {
       }
 
       prefs.availableUpdate.state = UpdateState.Ready;
+      if (!prefs.updates) {
+        prefs.updates = {};
+      }
       prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
       await this._savePrefs(prefs);
       return true;
@@ -637,6 +640,9 @@ class IonicDeployImpl {
       }
 
       // Is the current version on the device?
+      if (!prefs.updates) {
+        prefs.updates = {};
+      }
       if (!(prefs.currentVersionId in prefs.updates)) {
         console.error(`Deploy => Missing version ${prefs.currentVersionId}`);
         channel.onIonicProReady.fire();
@@ -667,6 +673,9 @@ class IonicDeployImpl {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
+      if (!prefs.updates) {
+        prefs.updates = {};
+      }
       if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
         console.log(
           `Deploy => Update ${prefs.currentVersionId} was built for different binary version, updating cordova assets...` +
@@ -798,6 +807,9 @@ class IonicDeployImpl {
   }
 
   async getVersionById(versionId: string): Promise<ISnapshotInfo | undefined> {
+    if (!this._savedPreferences.updates) {
+      this._savedPreferences.updates = {};
+    }
     const update = this._savedPreferences.updates[versionId];
     if (!update) {
       return;
@@ -848,7 +860,8 @@ class IonicDeployImpl {
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {
-    return Object.keys(this._savedPreferences.updates).map(k => this._convertToSnapshotInfo(this._savedPreferences.updates[k]));
+    const updates = this._savedPreferences.updates || {};
+    return Object.keys(updates).map(k => this._convertToSnapshotInfo(updates[k]));
   }
 
   async deleteVersionById(versionId: string): Promise<boolean> {
@@ -860,7 +873,9 @@ class IonicDeployImpl {
 
     console.log(`Deploy => Deploy => Deleting ionic snapshot ${versionId}.`);
 
-    delete prefs.updates[versionId];
+    if (prefs.updates) {
+      delete prefs.updates[versionId];
+    }
     await this._savePrefs(prefs);
 
     // delete snapshot directory
@@ -872,6 +887,9 @@ class IonicDeployImpl {
   private getStoredUpdates() {
     // get an array of stored updates minus current deployed one
     const prefs = this._savedPreferences;
+    if (!prefs.updates) {
+      prefs.updates = {};
+    }
     const updates = [];
     for (const versionId of Object.keys(prefs.updates)) {
       // don't clean up the current version

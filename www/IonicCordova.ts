@@ -220,6 +220,11 @@ export interface ICurrentConfig {
   channel: string;
 
   /**
+   * The [nativeChannel](https://ionicframework.com/docs/pro/deploy/channels) that the plugin was orginally configured with.
+   */
+  nativeChannel: string;
+
+  /**
    * @deprecated
    * The binary version of the native bundle versionName on Android or CFBundleShortVersionString on iOS
    * deprecated in favor of versionName
