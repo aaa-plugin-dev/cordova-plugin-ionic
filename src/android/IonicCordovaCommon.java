@@ -539,6 +539,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
 
     String appId = getStringResourceByName("ionic_app_id");
     j.put("appId", appId);
+    j.put("nativeAppId", appId);
     j.put("disabled", preferences.getBoolean("DisableDeploy", false));
     j.put("channel", getStringResourceByName("ionic_channel_name"));
     j.put("nativeChannel", getStringResourceByName("ionic_channel_name"));

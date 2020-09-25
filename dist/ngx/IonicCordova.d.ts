@@ -1,4 +1,4 @@
-import { CancelToken } from './tokens';
+import { CancelToken } from "./tokens";
 declare global {
     interface Window {
         IonicCordova: IPluginBaseAPI;
@@ -176,7 +176,7 @@ export interface IDeployConfig {
     /**
      * The update method the app should use when checking for available updates
      */
-    updateMethod?: 'none' | 'auto' | 'background';
+    updateMethod?: "none" | "auto" | "background";
 }
 /**
  * The current configuration for the deploy plugin on the device.
@@ -186,6 +186,10 @@ export interface ICurrentConfig {
      * The [Ionic Pro](https://ionicframework.com/docs/pro/) app id.
      */
     appId: string;
+    /**
+     * The [Ionic Pro](https://ionicframework.com/docs/pro/) native app id.
+     */
+    nativeAppId: string;
     /**
      * The [channel](https://ionicframework.com/docs/pro/deploy/channels) that the plugin should listen for updates on.
      */
@@ -219,7 +223,7 @@ export interface ICurrentConfig {
     /**
      * The currently configured updateMethod for the plugin.
      */
-    updateMethod: 'none' | 'auto' | 'background';
+    updateMethod: "none" | "auto" | "background";
     /**
      * The maximum number of updates to be stored locally on the device.
      */
@@ -290,7 +294,7 @@ export interface ISyncOptions {
     /**
      * Whether the update should be applied immediately or on the next app start.
      */
-    updateMethod?: 'background' | 'auto';
+    updateMethod?: "background" | "auto";
 }
 /**
  * The response object describing if an update is available.
@@ -334,7 +338,7 @@ export interface IAppInfo {
     /**
      * The platform that the app is currently installed on.
      */
-    platform: 'ios' | 'android';
+    platform: "ios" | "android";
     /**
      * The version of the native platform.
      */

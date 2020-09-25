@@ -1,4 +1,4 @@
-import { CancelToken } from './tokens';
+import { CancelToken } from "./tokens";
 
 declare global {
   interface Window {
@@ -11,7 +11,6 @@ declare global {
  * The Public API for the deploy Plugin
  */
 export interface DeployPluginAPI {
-
   /**
    * @description Update the default configuration for the plugin on the current device. The new configuration will be persisted across app close and binary updates.
    *
@@ -48,7 +47,10 @@ export interface DeployPluginAPI {
    *
    * @return  true if the download succeeded
    */
-  downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
+  downloadUpdate(
+    cancelToken: CancelToken,
+    progress?: CallbackFunction<number>
+  ): Promise<boolean>;
 
   /**
    * @description Extract a downloaded bundle of updated files.
@@ -59,7 +61,10 @@ export interface DeployPluginAPI {
    *
    * @return  true if the extract succeeded
    */
-  extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
+  extractUpdate(
+    cancelToken: CancelToken,
+    progress?: CallbackFunction<number>
+  ): Promise<boolean>;
 
   /**
    * @description Reload the app if a more recent version of the app is available.
@@ -99,7 +104,11 @@ export interface DeployPluginAPI {
    *
    * @return The info about the currently applied update or undefined if none is applied.
    */
-  sync(syncOptions: ISyncOptions, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined>;
+  sync(
+    syncOptions: ISyncOptions,
+    cancelToken: CancelToken,
+    progress?: CallbackFunction<number>
+  ): Promise<ISnapshotInfo | undefined>;
 
   /**
    *
@@ -167,7 +176,6 @@ export interface IPluginBaseAPI {
  * The configuration for the deploy plugin on the device.
  */
 export interface IDeployConfig {
-
   /**
    * The [Ionic Pro](https://ionicframework.com/docs/pro/) app id.
    */
@@ -202,7 +210,7 @@ export interface IDeployConfig {
   /**
    * The update method the app should use when checking for available updates
    */
-  updateMethod?: 'none' | 'auto' | 'background';
+  updateMethod?: "none" | "auto" | "background";
 }
 
 /**
@@ -213,6 +221,11 @@ export interface ICurrentConfig {
    * The [Ionic Pro](https://ionicframework.com/docs/pro/) app id.
    */
   appId: string;
+
+  /**
+   * The [Ionic Pro](https://ionicframework.com/docs/pro/) native app id.
+   */
+  nativeAppId: string;
 
   /**
    * The [channel](https://ionicframework.com/docs/pro/deploy/channels) that the plugin should listen for updates on.
@@ -254,7 +267,7 @@ export interface ICurrentConfig {
   /**
    * The currently configured updateMethod for the plugin.
    */
-  updateMethod: 'none' | 'auto' | 'background';
+  updateMethod: "none" | "auto" | "background";
 
   /**
    * The maximum number of updates to be stored locally on the device.
@@ -282,7 +295,6 @@ export interface ICurrentConfig {
  * Information about a snapshot
  */
 export interface ISnapshotInfo {
-
   /**
    * @deprecated in favor of [versionId](#versionid)
    *
@@ -339,7 +351,7 @@ export interface ISyncOptions {
   /**
    * Whether the update should be applied immediately or on the next app start.
    */
-  updateMethod?: 'background' | 'auto';
+  updateMethod?: "background" | "auto";
 }
 
 /**
@@ -388,11 +400,10 @@ export interface CheckForUpdateResponse {
  * Information about the application.
  */
 export interface IAppInfo {
-
   /**
    * The platform that the app is currently installed on.
    */
-  platform: 'ios' | 'android';
+  platform: "ios" | "android";
 
   /**
    * The version of the native platform.
@@ -445,4 +456,6 @@ export interface IAppInfo {
 /**
  * A callback function to handle the result.
  */
-export interface CallbackFunction<T> { (result?: T): void; }
+export interface CallbackFunction<T> {
+  (result?: T): void;
+}

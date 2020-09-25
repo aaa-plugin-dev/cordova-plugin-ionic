@@ -223,6 +223,7 @@
     // Build the preferences json object
     NSMutableDictionary *json = [[NSMutableDictionary alloc] init];
     json[@"appId"] = appId;
+    json[@"nativeAppId"] = appId;
     json[@"disabled"] = disabled;
     json[@"channel"] = channel;
     json[@"nativeChannel"] = channel;
