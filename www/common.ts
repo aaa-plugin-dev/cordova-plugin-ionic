@@ -24,8 +24,6 @@ declare const Ionic: any;
 declare const Capacitor: any;
 declare const window: any;
 
-const ReferenceAppId = '5fc6b2fe';
-
 enum UpdateMethod {
   BACKGROUND = 'background',
   AUTO = 'auto',
@@ -269,7 +267,7 @@ class IonicDeployImpl {
   async resetToBundle(): Promise<boolean> {
     const prefs = this._savedPreferences;
     const customPrefs = {
-      appId: ReferenceAppId
+      appId: prefs.nativeAppId
     };
     await this.configure(customPrefs);
 
@@ -856,7 +854,8 @@ class IonicDeployImpl {
   }
 
   async isDefaultApp(): Promise<boolean> {
-    return Promise.resolve(this._savedPreferences.appId === ReferenceAppId);
+    return Promise.resolve(
+      this._savedPreferences.appId === this._savedPreferences.nativeAppId);
   }
 
   async getAvailableVersions(): Promise<ISnapshotInfo[]> {

@@ -41,7 +41,6 @@ var tokens_1 = require("./tokens");
 var channel = cordova.require('cordova/channel');
 channel.createSticky('onIonicProReady');
 channel.waitForInitialization('onIonicProReady');
-var ReferenceAppId = '5fc6b2fe';
 var UpdateMethod;
 (function (UpdateMethod) {
     UpdateMethod["BACKGROUND"] = "background";
@@ -296,7 +295,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 0:
                         prefs = this._savedPreferences;
                         customPrefs = {
-                            appId: ReferenceAppId
+                            appId: prefs.nativeAppId
                         };
                         return [4 /*yield*/, this.configure(customPrefs)];
                     case 1:
@@ -1114,7 +1113,7 @@ var IonicDeployImpl = /** @class */ (function () {
     IonicDeployImpl.prototype.isDefaultApp = function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
-                return [2 /*return*/, Promise.resolve(this._savedPreferences.appId === ReferenceAppId)];
+                return [2 /*return*/, Promise.resolve(this._savedPreferences.appId === this._savedPreferences.nativeAppId)];
             });
         });
     };
