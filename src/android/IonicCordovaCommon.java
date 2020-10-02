@@ -241,6 +241,45 @@ public class IonicCordovaCommon extends CordovaPlugin {
    * recursively remove a directory or a file
    *
    */
+  public void copyFile(CallbackContext callbackContext, JSONObject options) throws JSONException {
+    Log.d(TAG, "copy file: " + options.toString());
+    
+    boolean isAsset = options.getString("directory").equals("APPLICATION");
+    String fromFile = options.getString("fromFile");
+    String toFile = options.getString("toFile");
+
+    File dest = new File(toFile);
+    final PluginResult result;
+
+    try {
+      if (dest.exists()) {
+        FileUtils.forceDelete(dest);
+      }
+
+      if (isAsset) {
+        InputStream in = assetManager.open(fromFile);
+        OutputStream out = new FileOutputStream(toFile);
+        copyFile(in, out);
+      } else {
+        File source = new File(fromFile);
+        FileUtils.copyFile(source, dest);
+      }
+    } catch (IOException e) {
+      result = new PluginResult(PluginResult.Status.ERROR, e.getMessage());
+      result.setKeepCallback(false);
+      callbackContext.sendPluginResult(result);
+      return;
+    }
+
+    result = new PluginResult(PluginResult.Status.OK);
+    result.setKeepCallback(false);
+    callbackContext.sendPluginResult(result);
+  }
+
+  /**
+   * recursively remove a directory or a file
+   *
+   */
   public void remove(CallbackContext callbackContext, JSONObject options) throws JSONException {
     Log.d(TAG, "recursiveRemove called with " + options.toString());
     String target = options.getString("target");

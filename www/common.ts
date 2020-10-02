@@ -673,18 +673,80 @@ class IonicDeployImpl {
       if(!prefs.updates) {
         prefs.updates = {};
       }
-      if (prefs.currentVersionForAppId === "5fc6b2fe" && !this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
-        console.log(
-          `Deploy => Update ${prefs.currentVersionId} was built for different binary version removing update from device` +
-          `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
-          `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
-        );
-        const versionId = prefs.currentVersionId;
-        // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
-        delete prefs.currentVersionId;
-        delete prefs.currentVersionForAppId;
-        await this.deleteVersionById(versionId);
+      if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
+        if (prefs.currentVersionForAppId === "5fc6b2fe" ) {
+          await this.cleanReferenceDownload();
+        } else {
+          await this.cleanAcgOrMwgDownload();
+        }
       }
+    }
+  }
+
+  private async cleanReferenceDownload() {
+    const prefs = this._savedPreferences;
+    if (prefs.currentVersionId) {
+      if(!prefs.updates) {
+        prefs.updates = {};
+      }
+
+      console.log(
+        `Deploy => Update ${prefs.currentVersionId} was built for different binary version removing update from device` +
+        `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
+        `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
+      );
+      const versionId = prefs.currentVersionId;
+      // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
+      delete prefs.currentVersionId;
+      delete prefs.currentVersionForAppId;
+      await this.deleteVersionById(versionId);
+    }
+  }
+
+  private async cleanAcgOrMwgDownload() {
+    const prefs = this._savedPreferences;
+    if (prefs.currentVersionId) {
+      if(!prefs.updates) {
+        prefs.updates = {};
+      }
+
+      try {
+        const snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
+        const bundledAppDir = this.getBundledAppDir();
+
+        console.log('Deploy => Ionic: Copying folder cordova-js-src...');
+        await this._fileManager.copyTo({
+          source: { path: Path.join(bundledAppDir, 'cordova-js-src'), directory: 'APPLICATION' },
+          target: Path.join(snapshotDirectory, 'cordova-js-src')
+        });
+        console.log('Deploy => Ionic: Copying folder plugins...');
+        await this._fileManager.copyTo({
+          source: { path: Path.join(bundledAppDir, 'plugins'), directory: 'APPLICATION' },
+          target: Path.join(snapshotDirectory, 'plugins')
+        });
+        console.log('Deploy => Ionic: Copying folder task...');
+        await this._fileManager.copyTo({
+          source: { path: Path.join(bundledAppDir, 'task'), directory: 'APPLICATION' },
+          target: Path.join(snapshotDirectory, 'task')
+        });
+
+        console.log('Deploy => Ionic: Copying cordova files...');
+        await this._fileManager.copyFile('APPLICATION', Path.join(bundledAppDir, 'cordova.js'), Path.join(snapshotDirectory, 'cordova.js'));
+        await this._fileManager.copyFile('APPLICATION', Path.join(bundledAppDir, 'cordova_plugins.js'), Path.join(snapshotDirectory, 'cordova_plugins.js'));
+
+        // TODO: Has this only run on iOS
+        console.log('Deploy => Ionic: Copying ios specific file wk-plugin.js...');
+        await this._fileManager.copyFile('APPLICATION', Path.join(bundledAppDir, 'wk-plugin.js'), Path.join(snapshotDirectory, 'wk-plugin.js'));
+        
+        console.log('Deploy => Ionic: switch binary version...');
+        prefs.updates[prefs.currentVersionId].binaryVersionName = prefs.binaryVersionName;
+        prefs.updates[prefs.currentVersionId].binaryVersionCode = prefs.binaryVersionCode;
+        this._savePrefs(prefs);        
+      } catch(error) {
+        console.log(`Deploy => Ionic cordova files error: ${error}`);
+      }
+
+      console.log('Deploy => Ionic: cordova file update done...');
     }
   }
 
@@ -897,6 +959,12 @@ class IonicDeployImpl {
 }
 
 class FileManager {
+  async copyFile(directory: string, fromFile: string, toFile: string) {
+    return new Promise<void>( (resolve, reject) => {
+      cordova.exec(resolve, reject, 'IonicCordovaCommon', 'copyFile', [{directory, fromFile, toFile}]);
+    }).catch(error => console.log(`Deploy => Error copying file ${fromFile}: ${error}`));
+  }
+
   async copyTo(options: { source: { directory: string; path: string; } , target: string}) {
     return new Promise<void>( (resolve, reject) => {
       cordova.exec(resolve, reject, 'IonicCordovaCommon', 'copyTo', [options]);
@@ -906,7 +974,7 @@ class FileManager {
   async remove(path: string) {
     return new Promise<void>( (resolve, reject) => {
       cordova.exec(resolve, reject, 'IonicCordovaCommon', 'remove', [{target: path}]);
-    });
+    }).catch(error => console.log(`Deploy => Error deleting file ${path}: ${error}`));
   }
 
   async downloadAndWriteFile(url: string, path: string) {
@@ -938,6 +1006,15 @@ class FileManager {
         }
       );
     });
+  }
+
+  async fileExists(path: string, fileName: string) {
+    try {
+      await this.getFileEntry(path, fileName);
+      return true;
+    } catch (e) {
+      return false;
+    }
   }
 
   async getFile(fullPath: string): Promise<string> {

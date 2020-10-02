@@ -64,6 +64,8 @@
 
 - (void) copyTo:(CDVInvokedUrlCommand *)command;
 
+- (void) copyFile:(CDVInvokedUrlCommand *)command;
+
 - (void) remove:(CDVInvokedUrlCommand *)command;
 
 - (void) downloadFile:(CDVInvokedUrlCommand *)command;

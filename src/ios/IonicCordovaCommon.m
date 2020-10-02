@@ -24,6 +24,32 @@
     [prefs synchronize];
 }
 
+- (void) copyFile:(CDVInvokedUrlCommand*)command {
+    NSDictionary *options = command.arguments[0];
+    NSString *directory = options[@"directory"];
+    NSString *fromFile = options[@"fromFile"];
+    NSString *toFile = options[@"toFile"];
+
+    if (![directory isEqualToString:@"APPLICATION"]) {
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: @"Only Application directory is supported"]  callbackId:command.callbackId];
+        return;
+    }
+
+    [[NSFileManager defaultManager] removeItemAtPath:toFile error:nil];
+    
+    NSMutableString *source = [NSMutableString stringWithString:[[NSBundle mainBundle] resourcePath]];
+    [source appendString:@"/"];
+    [source appendString:fromFile];
+
+    NSError *copyError = nil;
+    if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:toFile error:&copyError]) {
+        NSLog(@"Error copying files: %@", [copyError localizedDescription]);
+        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
+        return;
+    }
+    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+}
+
 - (void) remove:(CDVInvokedUrlCommand*)command {
     NSDictionary *options = command.arguments[0];
     NSString *path = options[@"target"];
