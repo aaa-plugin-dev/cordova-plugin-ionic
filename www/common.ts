@@ -222,6 +222,7 @@ class IonicDeployImpl {
       return;
     }
 
+    await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
       console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
@@ -617,12 +618,10 @@ class IonicDeployImpl {
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Ready) {
       prefs.currentVersionId = prefs.availableUpdate.versionId;
       prefs.currentVersionForAppId = prefs.appId;
+      prefs.currentBuildId = prefs.availableUpdate.buildId;
       delete prefs.availableUpdate;
       await this._savePrefs(prefs);
     }
-
-    // Clean current version if its stale
-    await this.cleanCurrentVersionIfStale();
 
     // Is there a non-binary version deployed?
     if (prefs.currentVersionId) {
@@ -667,92 +666,24 @@ class IonicDeployImpl {
     return update.binaryVersionName === currentVersionName && update.binaryVersionCode === currentVersionCode;
   }
 
-  public async cleanCurrentVersionIfStale() {
+  private async cleanCurrentVersionIfStale() {
     const prefs = this._savedPreferences;
     // Is the current version built from a previous binary?
     if (prefs.currentVersionId) {
-      if (!prefs.updates) {
+      if(!prefs.updates) {
         prefs.updates = {};
       }
-      if (!this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
+      if (prefs.currentVersionForAppId === "5fc6b2fe" && !this.isCurrentVersion(prefs.updates[prefs.currentVersionId]) && !(await this._isRunningVersion(prefs.currentVersionId))) {
         console.log(
-          `Deploy => Update ${prefs.currentVersionId} was built for different binary version, updating cordova assets...` +
+          `Deploy => Update ${prefs.currentVersionId} was built for different binary version removing update from device` +
           `Update binaryVersionName: ${prefs.updates[prefs.currentVersionId].binaryVersionName}, Device binaryVersionName ${prefs.binaryVersionName}` +
           `Update binaryVersionCode: ${prefs.updates[prefs.currentVersionId].binaryVersionCode}, Device binaryVersionCode ${prefs.binaryVersionCode}`
         );
-
-        console.log('Deploy => Ionic: Cleaning stale assets...');
-
-        // We need to ensure some plugins and other files are copied from bundled to snapshot
-        // this ensure plugins js are not out of date.
-        const snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
-        const bundledAppDir = this.getBundledAppDir();
-
-        try {
-          // Copy directories over (they are removed first)
-          await this._fileManager.copyTo({
-            source: {
-              path: Path.join(bundledAppDir, 'plugins'),
-              directory: 'APPLICATION',
-            },
-            target: Path.join(snapshotDirectory, 'plugins')
-          });
-          await this._fileManager.copyTo({
-            source: {
-              path: Path.join(bundledAppDir, 'cordova-js-src'),
-              directory: 'APPLICATION',
-            },
-            target: Path.join(snapshotDirectory, 'cordova-js-src')
-          });
-          await this._fileManager.copyTo({
-            source: {
-              path: Path.join(bundledAppDir, 'task'),
-              directory: 'APPLICATION',
-            },
-            target: Path.join(snapshotDirectory, 'task')
-          });
-
-          // Copy files over
-          console.log('Deploy => Ionic: Copying cordova files...');
-          await this._fileManager.remove(Path.join(snapshotDirectory, 'cordova.js'));
-          await this._fileManager.remove(Path.join(snapshotDirectory, 'cordova_plugins.js'));
-          await this._fileManager.copyTo({
-            source: {
-              path: Path.join(bundledAppDir, 'cordova.js'),
-              directory: 'APPLICATION',
-            },
-            target: snapshotDirectory
-          });
-          await this._fileManager.copyTo({
-            source: {
-              path: Path.join(bundledAppDir, 'cordova_plugins.js'),
-              directory: 'APPLICATION',
-            },
-            target: snapshotDirectory
-          });
-
-          // IOS only
-          if (this.appInfo.platform === 'ios') {
-            console.log('Deploy => Ionic: Copying ios specific files...');
-            await this._fileManager.remove(Path.join(snapshotDirectory, 'wk-plugin.js'));
-            await this._fileManager.copyTo({
-              source: {
-                path: Path.join(bundledAppDir, 'wk-plugin.js'),
-                directory: 'APPLICATION',
-              },
-              target: snapshotDirectory
-            });
-          }
-        } catch (err) {
-          console.error(`Deploy => Error: ${err}`);
-        }
-
-        // Switch the updates binary version name
-        prefs.updates[prefs.currentVersionId].binaryVersionName = prefs.binaryVersionName;
-        prefs.updates[prefs.currentVersionId].binaryVersionCode = prefs.binaryVersionCode;
-
-        // Save prefs to stop this happening again
-        return await this._savePrefs(prefs);
+        const versionId = prefs.currentVersionId;
+        // NOTE: deleting pref.currentVersionId here to fool deleteVersionById into deleting it
+        delete prefs.currentVersionId;
+        delete prefs.currentVersionForAppId;
+        await this.deleteVersionById(versionId);
       }
     }
   }
