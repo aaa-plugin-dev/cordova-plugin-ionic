@@ -841,7 +841,9 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_b.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.currentVersionId) return [3 /*break*/, 6];
+                        if (!prefs.currentVersionId) {
+                            return [2 /*return*/];
+                        }
                         if (!prefs.updates) {
                             prefs.updates = {};
                         }
@@ -874,7 +876,9 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.currentVersionId) return [3 /*break*/, 2];
+                        if (!prefs.currentVersionId) {
+                            return [2 /*return*/];
+                        }
                         if (!prefs.updates) {
                             prefs.updates = {};
                         }
@@ -888,8 +892,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this.deleteVersionById(versionId)];
                     case 1:
                         _a.sent();
-                        _a.label = 2;
-                    case 2: return [2 /*return*/];
+                        return [2 /*return*/];
                 }
             });
         });
@@ -901,13 +904,15 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!prefs.currentVersionId) return [3 /*break*/, 10];
+                        if (!prefs.currentVersionId) {
+                            return [2 /*return*/];
+                        }
                         if (!prefs.updates) {
                             prefs.updates = {};
                         }
                         _a.label = 1;
                     case 1:
-                        _a.trys.push([1, 8, , 9]);
+                        _a.trys.push([1, 9, , 10]);
                         snapshotDirectory = this.getSnapshotCacheDir(prefs.currentVersionId);
                         bundledAppDir = this.getBundledAppDir();
                         console.log('Deploy => Ionic: Copying folder cordova-js-src...');
@@ -938,24 +943,25 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._fileManager.copyFile('APPLICATION', Path.join(bundledAppDir, 'cordova_plugins.js'), Path.join(snapshotDirectory, 'cordova_plugins.js'))];
                     case 6:
                         _a.sent();
-                        // TODO: Has this only run on iOS
+                        if (!(this.appInfo.platform === 'ios')) return [3 /*break*/, 8];
                         console.log('Deploy => Ionic: Copying ios specific file wk-plugin.js...');
                         return [4 /*yield*/, this._fileManager.copyFile('APPLICATION', Path.join(bundledAppDir, 'wk-plugin.js'), Path.join(snapshotDirectory, 'wk-plugin.js'))];
                     case 7:
                         _a.sent();
+                        _a.label = 8;
+                    case 8:
                         console.log('Deploy => Ionic: switch binary version...');
                         prefs.updates[prefs.currentVersionId].binaryVersionName = prefs.binaryVersionName;
                         prefs.updates[prefs.currentVersionId].binaryVersionCode = prefs.binaryVersionCode;
                         this._savePrefs(prefs);
-                        return [3 /*break*/, 9];
-                    case 8:
+                        return [3 /*break*/, 10];
+                    case 9:
                         error_3 = _a.sent();
                         console.log("Deploy => Ionic cordova files error: " + error_3);
-                        return [3 /*break*/, 9];
-                    case 9:
+                        return [3 /*break*/, 10];
+                    case 10:
                         console.log('Deploy => Ionic: cordova file update done...');
-                        _a.label = 10;
-                    case 10: return [2 /*return*/];
+                        return [2 /*return*/];
                 }
             });
         });
