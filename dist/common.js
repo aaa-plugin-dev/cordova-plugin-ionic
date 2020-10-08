@@ -820,8 +820,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         Ionic.WebView.setServerBasePath(newLocation);
                         return [2 /*return*/, true];
                     case 7:
+                        console.log('Deploy => Reload requested but no current version using bundle');
                         channel.onIonicProReady.fire();
-                        return [2 /*return*/, false];
+                        return [2 /*return*/, true];
                 }
             });
         });

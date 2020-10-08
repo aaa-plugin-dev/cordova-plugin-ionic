@@ -653,8 +653,9 @@ class IonicDeployImpl {
       return true;
     }
 
+    console.log('Deploy => Reload requested but no current version using bundle');
     channel.onIonicProReady.fire();
-    return false;
+    return true;
   }
 
   // compare an update to the current version using both name & code
