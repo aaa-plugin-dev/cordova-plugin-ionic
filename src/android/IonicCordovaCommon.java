@@ -96,19 +96,24 @@ public class IonicCordovaCommon extends CordovaPlugin {
       this.getPreferences(callbackContext);
     } else if (action.equals("setPreferences")) {
       this.setPreferences(callbackContext, args.getJSONObject(0));
-    } else if (action.equals("configure")){
+    } else if (action.equals("configure")) {
       this.configure(callbackContext, args.getJSONObject(0));
-    } else if (action.equals("copyTo")){
-      this.copyTo(callbackContext, args.getJSONObject(0));
-    } else if (action.equals("remove")){
+    } else if (action.equals("copyFile")) {
+      this.copyFile(callbackContext, args.getJSONObject(0));
+    } else if (action.equals("copyTo")) {
+      threadhelper( new FileOp( ) {
+        public void run(final JSONArray passedArgs, final CallbackContext cbcontext) throws JSONException {
+          copyTo(cbcontext, passedArgs.getJSONObject(0));
+        }
+      }, args, callbackContext);
+    } else if (action.equals("remove")) {
       this.remove(callbackContext, args.getJSONObject(0));
-    } else if (action.equals("downloadFile")){
-      threadhelper( new FileOp( ){
+    } else if (action.equals("downloadFile")) {
+      threadhelper( new FileOp( ) {
         public void run(final JSONArray passedArgs, final CallbackContext cbcontext) throws JSONException {
           downloadFile(cbcontext, passedArgs.getJSONObject(0));
         }
       }, args, callbackContext);
-
     } else if (action.equals("restart")) {
       this.restart();
     } else if (action.equals("resetToBundle")) {
@@ -159,7 +164,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
         in = assetManager.open(assetPath + "/" + filename);
         File destDir = new File(targetDir);
         if (!destDir.exists()) {
-            destDir.mkdirs();
+          destDir.mkdirs();
         }
         File outFile = new File(targetDir, filename);
         out = new FileOutputStream(outFile);
@@ -243,7 +248,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
    */
   public void copyFile(CallbackContext callbackContext, JSONObject options) throws JSONException {
     Log.d(TAG, "copy file: " + options.toString());
-    
+
     boolean isAsset = options.getString("directory").equals("APPLICATION");
     String fromFile = options.getString("fromFile");
     String toFile = options.getString("toFile");
@@ -471,12 +476,12 @@ public class IonicCordovaCommon extends CordovaPlugin {
     cordova.getActivity().runOnUiThread(new Runnable() {
       @Override
       public void run() {
-          try {
-              Log.i(TAG, "Warm restarting main activity");
-              cordova.getActivity().recreate();
-          } catch (Exception ex) {
-              Log.e(TAG, "Unable to warm restart main activity: " + ex.getMessage());
-          }
+        try {
+          Log.i(TAG, "Warm restarting main activity");
+          cordova.getActivity().recreate();
+        } catch (Exception ex) {
+          Log.e(TAG, "Unable to warm restart main activity: " + ex.getMessage());
+        }
       }
     });
   }
@@ -485,10 +490,10 @@ public class IonicCordovaCommon extends CordovaPlugin {
     SharedPreferences prefs = cordova.getContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     String prefsString = prefs.getString("ionicDeploySavedPreferences", null);
     JSONObject customPrefs = new JSONObject();
-    
+
     try {
       if (prefsString != null) {
-          customPrefs = new JSONObject(prefsString);
+        customPrefs = new JSONObject(prefsString);
       }
 
       customPrefs.remove("availableUpdate");
@@ -528,25 +533,25 @@ public class IonicCordovaCommon extends CordovaPlugin {
   }
 
   private void showErrorAlert(CallbackContext callbackContext, Activity activity) {
-      AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.Theme_AppCompat_Light_Dialog);
+    AlertDialog.Builder builder = new AlertDialog.Builder(activity, R.style.Theme_AppCompat_Light_Dialog);
 
-      builder.setTitle("Download Error")
-              .setMessage("Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357")
-              .setCancelable(false)
-              .setPositiveButton("Try Again", (dialog, which) -> {
-                  dialog.dismiss();
-                  callbackContext.success("TryAgain");
-              })
-              .setNeutralButton("Call AAA", (dialog, which) -> {
-                  dialog.dismiss();
-                  Intent callIntent = new Intent(Intent.ACTION_DIAL);
-                  callIntent.setData(Uri.parse("tel:18002224357"));
-                  activity.startActivity(callIntent);
-                  callbackContext.success("CallAAA");
-              });
+    builder.setTitle("Download Error")
+        .setMessage("Please check your internet connection and/or signal strength and try again or for Roadside Assistance call 800-222-4357")
+        .setCancelable(false)
+        .setPositiveButton("Try Again", (dialog, which) -> {
+          dialog.dismiss();
+          callbackContext.success("TryAgain");
+        })
+        .setNeutralButton("Call AAA", (dialog, which) -> {
+          dialog.dismiss();
+          Intent callIntent = new Intent(Intent.ACTION_DIAL);
+          callIntent.setData(Uri.parse("tel:18002224357"));
+          activity.startActivity(callIntent);
+          callbackContext.success("CallAAA");
+        });
 
-      AlertDialog dialog = builder.create();
-      dialog.show();
+    AlertDialog dialog = builder.create();
+    dialog.show();
   }
 
   private JSONObject getNativeConfig() throws JSONException {
@@ -630,5 +635,4 @@ public class IonicCordovaCommon extends CordovaPlugin {
   private static String toDirUrl(File f) {
     return Uri.fromFile(f).toString() + '/';
   }
-
 }
