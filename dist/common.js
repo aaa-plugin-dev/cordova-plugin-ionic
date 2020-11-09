@@ -712,7 +712,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 4:
                         try {
                             snapManifestStrings_1 = snapshotManifest.map(function (entry) { return JSON.stringify(entry); });
-                            differences = newManifest.filter(function (entry) { return (entry.href === 'assets/version.txt' || snapManifestStrings_1.indexOf(JSON.stringify(entry)) === -1); });
+                            differences = newManifest.filter(function (entry) { return (entry.href === 'assets/version.txt' || (snapManifestStrings_1.indexOf(JSON.stringify(entry)) === -1 && !entry.href.startsWith('svg/'))); });
                             // Append pro-manifest.json if there are differences
                             if (differences.length > 0) {
                                 differences.push({ href: 'pro-manifest.json', integrity: 'void', size: 0 });

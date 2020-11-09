@@ -566,7 +566,7 @@ class IonicDeployImpl {
 
     try {
       const snapManifestStrings = snapshotManifest.map(entry => JSON.stringify(entry));
-      const differences = newManifest.filter(entry => (entry.href === 'assets/version.txt' ||  snapManifestStrings.indexOf(JSON.stringify(entry)) === -1));
+      const differences = newManifest.filter(entry => (entry.href === 'assets/version.txt' || (snapManifestStrings.indexOf(JSON.stringify(entry)) === -1 && !entry.href.startsWith('svg/')) ));
 
       // Append pro-manifest.json if there are differences
       if (differences.length > 0) {
