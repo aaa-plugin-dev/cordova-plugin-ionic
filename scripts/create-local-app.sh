@@ -22,7 +22,7 @@ npm run build
 # Add cordova platform and install the plugin
 cordova platform add ios@latest
 cordova platform add android@latest
-cordova plugin add ../cordova-plugin-aaa-ionic --save \
+cordova plugin add ../cordova-plugin-ionic --save \
 --variable MIN_BACKGROUND_DURATION="$BACKGROUND_DURATION" \
 --variable APP_ID="${APP_ID}" \
 --variable CHANNEL_NAME="${CHANNEL}" \

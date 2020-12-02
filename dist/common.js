@@ -1480,7 +1480,7 @@ var IonicDeploy = /** @class */ (function () {
                         appInfo = _a.sent();
                         delegate = new IonicDeployImpl(appInfo, preferences);
                         if (!this.disabled) return [3 /*break*/, 3];
-                        disabledMessage = 'cordova-plugin-aaa-ionic has been disabled.';
+                        disabledMessage = 'cordova-plugin-ionic has been disabled.';
                         if (!this.fetchIsAvailable) {
                             disabledMessage = 'Fetch is unavailable so ' + disabledMessage;
                         }

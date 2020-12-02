@@ -44,7 +44,7 @@ var deviceready = new Promise(function (resolve, rejects) {
         if (window.IonicCordova) {
             return resolve(window.IonicCordova.deploy);
         }
-        return rejects('cordova-plugin-aaa-ionic not found. Are you sure you installed it?');
+        return rejects('cordova-plugin-ionic not found. Are you sure you installed it?');
     });
 });
 var DeployClass = /** @class */ (function () {

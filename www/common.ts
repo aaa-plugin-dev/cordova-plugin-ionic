@@ -1087,7 +1087,7 @@ class IonicDeploy implements IDeployPluginAPI {
     const delegate = new IonicDeployImpl(appInfo, preferences);
     // Only initialize start the plugin if fetch is available and DisableDeploy preference is false
     if (this.disabled) {
-      let disabledMessage = 'cordova-plugin-aaa-ionic has been disabled.';
+      let disabledMessage = 'cordova-plugin-ionic has been disabled.';
       if (!this.fetchIsAvailable) {
         disabledMessage = 'Fetch is unavailable so ' + disabledMessage;
       }
