@@ -611,7 +611,7 @@ class IonicDeployImpl {
     }
   }
 
-  async reloadApp(): Promise<boolean> {
+  async reloadApp(force = false): Promise<boolean> {
     const prefs = this._savedPreferences;
 
     // Save the current update if it's ready
@@ -633,6 +633,9 @@ class IonicDeployImpl {
         channel.onIonicProReady.fire();
         Ionic.WebView.persistServerBasePath();
         await this.cleanupVersions();
+        if (force) {
+          await this.forceReloadApp();
+        }
         return false;
       }
 
@@ -640,9 +643,13 @@ class IonicDeployImpl {
       if (!prefs.updates) {
         prefs.updates = {};
       }
+
       if (!(prefs.currentVersionId in prefs.updates)) {
         console.error(`Deploy => Missing version ${prefs.currentVersionId}`);
         channel.onIonicProReady.fire();
+        if (force) {
+          await this.forceReloadApp();
+        }
         return false;
       }
 
@@ -655,6 +662,18 @@ class IonicDeployImpl {
 
     console.log('Deploy => Reload requested but no current version using bundle');
     channel.onIonicProReady.fire();
+    if (force) {
+      await this.forceReloadApp();
+    }
+    return true;
+  }
+
+  async forceReloadApp(): Promise<boolean> {
+    try {
+      window.location.reload();
+    } catch (error) {
+      console.error(`Deploy => Force reload failed: ${error}`);
+    }
     return true;
   }
 
@@ -1194,8 +1213,8 @@ class IonicDeploy implements IDeployPluginAPI {
     return;
   }
 
-  async reloadApp(): Promise<boolean> {
-    if (!this.disabled) return (await this.delegate).reloadApp();
+  async reloadApp(force = false): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).reloadApp(force);
     return false;
   }
 

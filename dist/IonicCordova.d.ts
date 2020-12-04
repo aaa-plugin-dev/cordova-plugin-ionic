@@ -60,7 +60,7 @@ export interface DeployPluginAPI {
      *
      * @return true if the reload succeeded
      */
-    reloadApp(): Promise<boolean>;
+    reloadApp(force: boolean): Promise<boolean>;
     /**
      * @description Reset the app to bundle.
      *

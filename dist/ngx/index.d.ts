@@ -6,7 +6,7 @@ export declare class DeployClass implements IDeployPluginAPI {
     checkForUpdate(): Promise<CheckForUpdateResponse>;
     downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
     extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
-    reloadApp(): Promise<boolean>;
+    reloadApp(force?: boolean): Promise<boolean>;
     resetToBundle(): Promise<boolean>;
     showErrorAlert(): Promise<string>;
     sync(options: ISyncOptions, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined>;

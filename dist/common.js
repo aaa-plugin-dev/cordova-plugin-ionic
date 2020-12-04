@@ -773,7 +773,8 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype.reloadApp = function () {
+    IonicDeployImpl.prototype.reloadApp = function (force) {
+        if (force === void 0) { force = false; }
         return __awaiter(this, void 0, void 0, function () {
             var prefs, newLocation;
             return __generator(this, function (_a) {
@@ -790,10 +791,10 @@ var IonicDeployImpl = /** @class */ (function () {
                         _a.sent();
                         _a.label = 2;
                     case 2:
-                        if (!prefs.currentVersionId) return [3 /*break*/, 7];
+                        if (!prefs.currentVersionId) return [3 /*break*/, 12];
                         return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
                     case 3:
-                        if (!_a.sent()) return [3 /*break*/, 6];
+                        if (!_a.sent()) return [3 /*break*/, 8];
                         console.log("Deploy => Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
@@ -804,26 +805,54 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this.cleanupVersions()];
                     case 5:
                         _a.sent();
-                        return [2 /*return*/, false];
+                        if (!force) return [3 /*break*/, 7];
+                        return [4 /*yield*/, this.forceReloadApp()];
                     case 6:
+                        _a.sent();
+                        _a.label = 7;
+                    case 7: return [2 /*return*/, false];
+                    case 8:
                         // Is the current version on the device?
                         if (!prefs.updates) {
                             prefs.updates = {};
                         }
-                        if (!(prefs.currentVersionId in prefs.updates)) {
-                            console.error("Deploy => Missing version " + prefs.currentVersionId);
-                            channel.onIonicProReady.fire();
-                            return [2 /*return*/, false];
-                        }
+                        if (!!(prefs.currentVersionId in prefs.updates)) return [3 /*break*/, 11];
+                        console.error("Deploy => Missing version " + prefs.currentVersionId);
+                        channel.onIonicProReady.fire();
+                        if (!force) return [3 /*break*/, 10];
+                        return [4 /*yield*/, this.forceReloadApp()];
+                    case 9:
+                        _a.sent();
+                        _a.label = 10;
+                    case 10: return [2 /*return*/, false];
+                    case 11:
                         newLocation = this.getSnapshotCacheDir(prefs.currentVersionId);
                         console.log('Deploy => setServerBasePath: ' + newLocation);
                         Ionic.WebView.setServerBasePath(newLocation);
                         return [2 /*return*/, true];
-                    case 7:
+                    case 12:
                         console.log('Deploy => Reload requested but no current version using bundle');
                         channel.onIonicProReady.fire();
-                        return [2 /*return*/, true];
+                        if (!force) return [3 /*break*/, 14];
+                        return [4 /*yield*/, this.forceReloadApp()];
+                    case 13:
+                        _a.sent();
+                        _a.label = 14;
+                    case 14: return [2 /*return*/, true];
                 }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.forceReloadApp = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                try {
+                    window.location.reload();
+                }
+                catch (error) {
+                    console.error("Deploy => Force reload failed: " + error);
+                }
+                return [2 /*return*/, true];
             });
         });
     };
@@ -1704,14 +1733,15 @@ var IonicDeploy = /** @class */ (function () {
             });
         });
     };
-    IonicDeploy.prototype.reloadApp = function () {
+    IonicDeploy.prototype.reloadApp = function (force) {
+        if (force === void 0) { force = false; }
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!!this.disabled) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.delegate];
-                    case 1: return [2 /*return*/, (_a.sent()).reloadApp()];
+                    case 1: return [2 /*return*/, (_a.sent()).reloadApp(force)];
                     case 2: return [2 /*return*/, false];
                 }
             });

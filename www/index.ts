@@ -47,9 +47,9 @@ export class DeployClass implements IDeployPluginAPI {
     return deploy.extractUpdate(cancelToken, progress);
   }
 
-  async reloadApp() {
+  async reloadApp(force = false) {
     const deploy = await deviceready;
-    return deploy.reloadApp();
+    return deploy.reloadApp(force);
   }
 
   async resetToBundle() {
