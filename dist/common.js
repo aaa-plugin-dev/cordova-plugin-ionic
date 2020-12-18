@@ -462,52 +462,56 @@ var IonicDeployImpl = /** @class */ (function () {
                 switch (_b.label) {
                     case 0:
                         prefs = this._savedPreferences;
-                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 12];
-                        return [4 /*yield*/, Promise.all([
-                                this._fetchManifest(prefs.availableUpdate.url),
-                                this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
-                            ])];
+                        if (!(prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available)) return [3 /*break*/, 13];
+                        console.log('Deploy => Fetch manifest file from ionic');
+                        return [4 /*yield*/, this._fetchManifestWithRetry(prefs.availableUpdate.url, 2)];
                     case 1:
-                        _a = (_b.sent())[0], fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
-                        return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
+                        _a = _b.sent(), fileBaseUrl = _a.fileBaseUrl, manifestJson = _a.manifestJson;
+                        console.log('Deploy => Prepare Update Directory');
+                        return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId)];
                     case 2:
-                        diffedManifest = _b.sent();
-                        _b.label = 3;
-                    case 3:
-                        _b.trys.push([3, 5, , 6]);
-                        return [4 /*yield*/, this._downloadFilesFromManifest(cancelToken, fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
-                    case 4:
                         _b.sent();
-                        return [3 /*break*/, 6];
+                        console.log('Deploy => Prepare diffed manifest');
+                        return [4 /*yield*/, this._diffManifests(manifestJson, prefs.availableUpdate.versionId)];
+                    case 3:
+                        diffedManifest = _b.sent();
+                        console.log("Deploy => Download the files from diffed manifest: " + diffedManifest.length + " files");
+                        _b.label = 4;
+                    case 4:
+                        _b.trys.push([4, 6, , 7]);
+                        return [4 /*yield*/, this._downloadFilesFromManifest(cancelToken, fileBaseUrl, diffedManifest, prefs.availableUpdate.versionId, progress)];
                     case 5:
+                        _b.sent();
+                        return [3 /*break*/, 7];
+                    case 6:
                         err_1 = _b.sent();
                         console.log('Deploy => CAUGHT ERROR - DOWNLOAD', err_1);
                         throw err_1;
-                    case 6:
-                        if (!cancelToken.isCancelled()) return [3 /*break*/, 7];
+                    case 7:
+                        if (!cancelToken.isCancelled()) return [3 /*break*/, 8];
                         console.log('Deploy => Download cancelled, returning');
                         cancelToken.onCancel();
                         return [2 /*return*/, false];
-                    case 7:
-                        _b.trys.push([7, 9, , 10]);
+                    case 8:
+                        _b.trys.push([8, 10, , 11]);
                         fullPath = Path.join(this.getSnapshotCacheDirPath(prefs.availableUpdate.versionId), 'assets/version.txt');
                         return [4 /*yield*/, this._fileManager.getFile(fullPath)];
-                    case 8:
+                    case 9:
                         ionicVersion = _b.sent();
                         prefs.availableUpdate.ionicVersion = ionicVersion;
-                        return [3 /*break*/, 10];
-                    case 9:
+                        return [3 /*break*/, 11];
+                    case 10:
                         error_2 = _b.sent();
                         delete prefs.availableUpdate.ionicVersion;
                         console.log("Deploy => Get ionic version error: " + error_2);
-                        return [3 /*break*/, 10];
-                    case 10:
+                        return [3 /*break*/, 11];
+                    case 11:
                         prefs.availableUpdate.state = UpdateState.Pending;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 11:
+                    case 12:
                         _b.sent();
                         return [2 /*return*/, true];
-                    case 12:
+                    case 13:
                         console.log('Deploy => Nothing to download');
                         return [2 /*return*/, false];
                 }
@@ -666,6 +670,33 @@ var IonicDeployImpl = /** @class */ (function () {
         while (end < start + ms) {
             end = new Date().getTime();
         }
+    };
+    IonicDeployImpl.prototype._fetchManifestWithRetry = function (url, noRetries) {
+        return __awaiter(this, void 0, void 0, function () {
+            var error_3;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (noRetries <= 1) {
+                            noRetries = 1;
+                        }
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 5]);
+                        return [4 /*yield*/, this._fetchManifest(url)];
+                    case 2: return [2 /*return*/, _a.sent()];
+                    case 3:
+                        error_3 = _a.sent();
+                        if (noRetries === 1) {
+                            console.log("Deploy: Fetch manifest has an error: " + error_3);
+                            throw error_3;
+                        }
+                        return [4 /*yield*/, this._fetchManifestWithRetry(url, noRetries - 1)];
+                    case 4: return [2 /*return*/, _a.sent()];
+                    case 5: return [2 /*return*/];
+                }
+            });
+        });
     };
     IonicDeployImpl.prototype._fetchManifest = function (url) {
         return __awaiter(this, void 0, void 0, function () {
@@ -929,7 +960,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanAcgOrMwgDownload = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, snapshotDirectory, bundledAppDir, error_3;
+            var prefs, snapshotDirectory, bundledAppDir, error_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -986,8 +1017,8 @@ var IonicDeployImpl = /** @class */ (function () {
                         this._savePrefs(prefs);
                         return [3 /*break*/, 10];
                     case 9:
-                        error_3 = _a.sent();
-                        console.log("Deploy => Ionic cordova files error: " + error_3);
+                        error_4 = _a.sent();
+                        console.log("Deploy => Ionic cordova files error: " + error_4);
                         return [3 /*break*/, 10];
                     case 10:
                         console.log('Deploy => Ionic: cordova file update done...');

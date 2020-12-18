@@ -404,17 +404,20 @@ class IonicDeployImpl {
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
     const prefs = this._savedPreferences;
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
-      const [{ fileBaseUrl, manifestJson }] = await Promise.all([
-        this._fetchManifest(prefs.availableUpdate.url),
-        this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
-      ]);
 
+      console.log('Deploy => Fetch manifest file from ionic');
+      const { fileBaseUrl, manifestJson } = await this._fetchManifestWithRetry(prefs.availableUpdate.url, 2);
+
+      console.log('Deploy => Prepare Update Directory');
+      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
+
+      console.log('Deploy => Prepare diffed manifest');
       const diffedManifest = await this._diffManifests(
         manifestJson,
         prefs.availableUpdate.versionId
       );
 
-      // Download the files
+      console.log(`Deploy => Download the files from diffed manifest: ${diffedManifest.length} files`);
       try {
         await this._downloadFilesFromManifest(cancelToken, fileBaseUrl, diffedManifest,  prefs.availableUpdate.versionId, progress);
       } catch (err) {
@@ -540,6 +543,22 @@ class IonicDeployImpl {
       end = new Date().getTime();
    }
  }
+
+  private async _fetchManifestWithRetry(url: string, noRetries: number): Promise<FetchManifestResp> {
+    if (noRetries <= 1) {
+      noRetries = 1;
+    }
+
+    try {
+      return await this._fetchManifest(url)
+    } catch(error) {
+        if (noRetries === 1) {
+          console.log(`Deploy: Fetch manifest has an error: ${error}`);
+          throw error;
+        }
+        return await this._fetchManifestWithRetry(url, noRetries - 1);
+    }
+  }
 
   private async _fetchManifest(url: string): Promise<FetchManifestResp> {
     console.log(`_fetchManifest: ${url}`);
