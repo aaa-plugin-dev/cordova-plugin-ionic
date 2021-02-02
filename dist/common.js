@@ -330,7 +330,7 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 7, , 8]);
+                        _a.trys.push([0, 8, , 9]);
                         console.log("Deploy => Get Bundle version for app: " + app);
                         return [4 /*yield*/, this._fileManager.getBundleVersion(app)];
                     case 1:
@@ -359,20 +359,24 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._fileManager.extractApplication(app, prefs.availableUpdate.versionId)];
                     case 4:
                         _a.sent();
+                        prefs.availableUpdate.state = UpdateState.Pending;
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 5:
+                        _a.sent();
                         console.log('Deploy => Activate version');
                         return [4 /*yield*/, this._extractUpdate()];
-                    case 5:
+                    case 6:
                         _a.sent();
                         console.log('Deploy => Reload Application');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 6:
-                        _a.sent();
-                        return [3 /*break*/, 8];
                     case 7:
+                        _a.sent();
+                        return [3 /*break*/, 9];
+                    case 8:
                         error_2 = _a.sent();
                         console.log("Deploy => extractApplication Error: " + error_2);
                         return [2 /*return*/, false];
-                    case 8: return [2 /*return*/, true];
+                    case 9: return [2 /*return*/, true];
                 }
             });
         });

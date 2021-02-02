@@ -319,6 +319,8 @@ class IonicDeployImpl {
 
       console.log('Deploy => Extract application bundle');
       await this._fileManager.extractApplication(app, prefs.availableUpdate.versionId);
+      prefs.availableUpdate.state = UpdateState.Pending;
+      await this._savePrefs(prefs);
 
       console.log('Deploy => Activate version');
       await this._extractUpdate();
