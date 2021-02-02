@@ -400,6 +400,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             try {
                                 cordova.exec(function (savedPrefs) { return __awaiter(_this, void 0, void 0, function () {
                                     return __generator(this, function (_a) {
+                                        this._savedPreferences = prefs;
                                         resolve(savedPrefs);
                                         return [2 /*return*/];
                                     });

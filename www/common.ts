@@ -353,6 +353,7 @@ class IonicDeployImpl {
     return new Promise<ISavedPreferences>(async (resolve, reject) => {
       try {
         cordova.exec(async (savedPrefs: ISavedPreferences) => {
+          this._savedPreferences = prefs;
           resolve(savedPrefs);
           }, reject, 'IonicCordovaCommon', 'setPreferences', [prefs]);
       } catch (e) {
@@ -641,7 +642,7 @@ class IonicDeployImpl {
     }
   }
 
-  private async prepareUpdateDirectory(versionId: string) {
+  private async prepareUpdateDirectory(versionId: string): Promise<void> {
     await this._cleanSnapshotDir(versionId);
     console.log('Deploy => Cleaned version directory');
 
@@ -862,7 +863,7 @@ class IonicDeployImpl {
     });
   }
 
-  private async _cleanSnapshotDir(versionId: string) {
+  private async _cleanSnapshotDir(versionId: string): Promise<void> {
     const timer = new Timer('CleanSnapshotDir');
     const snapshotDir = this.getSnapshotCacheDir(versionId);
     try {
@@ -874,7 +875,7 @@ class IonicDeployImpl {
     }
   }
 
-  private async _copyBaseAppDir(versionId: string) {
+  private async _copyBaseAppDir(versionId: string): Promise<void> {
     const timer = new Timer('CopyBaseApp');
     await this._fileManager.copyTo({
       source: {
