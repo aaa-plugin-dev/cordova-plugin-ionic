@@ -155,7 +155,7 @@ var DeployClass = /** @class */ (function () {
             });
         });
     };
-    DeployClass.prototype.extractApplication = function (app) {
+    DeployClass.prototype.extractApplication = function (appId, app) {
         return __awaiter(this, void 0, void 0, function () {
             var deploy;
             return __generator(this, function (_a) {
@@ -163,7 +163,7 @@ var DeployClass = /** @class */ (function () {
                     case 0: return [4 /*yield*/, deviceready];
                     case 1:
                         deploy = _a.sent();
-                        return [2 /*return*/, deploy.extractApplication(app)];
+                        return [2 /*return*/, deploy.extractApplication(appId, app)];
                 }
             });
         });

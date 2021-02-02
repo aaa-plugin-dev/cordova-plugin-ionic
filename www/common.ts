@@ -294,13 +294,17 @@ class IonicDeployImpl {
     return await this._fileManager.hasBundle(app);
   }
 
-  async extractApplication(app: string): Promise<boolean> {
+  async extractApplication(appId: string, app: string): Promise<boolean> {
+    const prefs = this._savedPreferences;   
+    const oldAppId = prefs.appId;
+    const currentVersionForAppId = prefs.currentVersionForAppId;
+    const oldCurrentVersionId = prefs.currentVersionId;
     try {
       console.log(`Deploy => Get Bundle version for app: ${app}`);
       const versionId = await this._fileManager.getBundleVersion(app);
 
       console.log(`Deploy => Prepare availableUpdate prefs`);
-      const prefs = this._savedPreferences;    
+      prefs.appId = appId; 
       prefs.availableUpdate = {
         binaryVersionCode: prefs.binaryVersionCode,
         binaryVersionName: prefs.binaryVersionName,
@@ -329,6 +333,14 @@ class IonicDeployImpl {
       await this.reloadApp();
     } catch(error) {
       console.log(`Deploy => extractApplication Error: ${error}`);
+      
+      const prefs = this._savedPreferences;   
+      prefs.appId = oldAppId;
+      prefs.currentVersionId = oldCurrentVersionId;
+      prefs.currentVersionForAppId = currentVersionForAppId;
+      delete prefs.availableUpdate;
+      await this._savePrefs(prefs);
+
       return false;
     }
 
@@ -1315,8 +1327,8 @@ class IonicDeploy implements IDeployPluginAPI {
     return false;
   }
 
-  async extractApplication(app: string): Promise<boolean> {
-    if (!this.disabled) return (await this.delegate).extractApplication(app);
+  async extractApplication(appId: string, app: string): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).extractApplication(appId, app);
     return false;
   }
 

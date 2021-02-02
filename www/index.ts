@@ -62,9 +62,9 @@ export class DeployClass implements IDeployPluginAPI {
     return deploy.hasBundle(app);
   }
 
-  async extractApplication(app: string): Promise<boolean> {
+  async extractApplication(appId: string, app: string): Promise<boolean> {
     const deploy = await deviceready;
-    return deploy.extractApplication(app);
+    return deploy.extractApplication(appId, app);
   }
 
   async showErrorAlert() {

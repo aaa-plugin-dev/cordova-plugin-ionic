@@ -100,7 +100,7 @@ export interface DeployPluginAPI {
    *
    * @return true if extract was successful
    */
-  extractApplication(app: string): Promise<boolean>;
+  extractApplication(appId: string, app: string): Promise<boolean>;
 
   /**
    * @description Show native error alert in case Angular can't be used

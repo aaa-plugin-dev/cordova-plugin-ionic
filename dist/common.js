@@ -324,19 +324,25 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype.extractApplication = function (app) {
+    IonicDeployImpl.prototype.extractApplication = function (appId, app) {
         return __awaiter(this, void 0, void 0, function () {
-            var versionId, prefs, error_2;
+            var prefs, oldAppId, currentVersionForAppId, oldCurrentVersionId, versionId, error_2, prefs_1;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        _a.trys.push([0, 8, , 9]);
+                        prefs = this._savedPreferences;
+                        oldAppId = prefs.appId;
+                        currentVersionForAppId = prefs.currentVersionForAppId;
+                        oldCurrentVersionId = prefs.currentVersionId;
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 9, , 11]);
                         console.log("Deploy => Get Bundle version for app: " + app);
                         return [4 /*yield*/, this._fileManager.getBundleVersion(app)];
-                    case 1:
+                    case 2:
                         versionId = _a.sent();
                         console.log("Deploy => Prepare availableUpdate prefs");
-                        prefs = this._savedPreferences;
+                        prefs.appId = appId;
                         prefs.availableUpdate = {
                             binaryVersionCode: prefs.binaryVersionCode,
                             binaryVersionName: prefs.binaryVersionName,
@@ -349,34 +355,42 @@ var IonicDeployImpl = /** @class */ (function () {
                             ionicVersion: '',
                         };
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 2:
+                    case 3:
                         _a.sent();
                         console.log('Deploy => Prepare Snapshotfolder Directory');
                         return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId)];
-                    case 3:
+                    case 4:
                         _a.sent();
                         console.log('Deploy => Extract application bundle');
                         return [4 /*yield*/, this._fileManager.extractApplication(app, prefs.availableUpdate.versionId)];
-                    case 4:
+                    case 5:
                         _a.sent();
                         prefs.availableUpdate.state = UpdateState.Pending;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 5:
+                    case 6:
                         _a.sent();
                         console.log('Deploy => Activate version');
                         return [4 /*yield*/, this._extractUpdate()];
-                    case 6:
+                    case 7:
                         _a.sent();
                         console.log('Deploy => Reload Application');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 7:
-                        _a.sent();
-                        return [3 /*break*/, 9];
                     case 8:
+                        _a.sent();
+                        return [3 /*break*/, 11];
+                    case 9:
                         error_2 = _a.sent();
                         console.log("Deploy => extractApplication Error: " + error_2);
+                        prefs_1 = this._savedPreferences;
+                        prefs_1.appId = oldAppId;
+                        prefs_1.currentVersionId = oldCurrentVersionId;
+                        prefs_1.currentVersionForAppId = currentVersionForAppId;
+                        delete prefs_1.availableUpdate;
+                        return [4 /*yield*/, this._savePrefs(prefs_1)];
+                    case 10:
+                        _a.sent();
                         return [2 /*return*/, false];
-                    case 9: return [2 /*return*/, true];
+                    case 11: return [2 /*return*/, true];
                 }
             });
         });
@@ -1905,14 +1919,14 @@ var IonicDeploy = /** @class */ (function () {
             });
         });
     };
-    IonicDeploy.prototype.extractApplication = function (app) {
+    IonicDeploy.prototype.extractApplication = function (appId, app) {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
                         if (!!this.disabled) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.delegate];
-                    case 1: return [2 /*return*/, (_a.sent()).extractApplication(app)];
+                    case 1: return [2 /*return*/, (_a.sent()).extractApplication(appId, app)];
                     case 2: return [2 /*return*/, false];
                 }
             });
