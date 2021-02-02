@@ -74,6 +74,12 @@
 
 - (void) showErrorAlert:(CDVInvokedUrlCommand *)command;
 
+- (void) hasBundle:(CDVInvokedUrlCommand *)command;
+
+- (void) getBundleVersion:(CDVInvokedUrlCommand *)command;
+
+- (void) extractApplication:(CDVInvokedUrlCommand *)command;
+
 /**
  * Get cordova plugin native congiguration and state information (config.xml stuff)
  *

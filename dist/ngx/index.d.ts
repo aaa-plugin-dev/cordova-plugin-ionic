@@ -8,6 +8,8 @@ export declare class DeployClass implements IDeployPluginAPI {
     extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean>;
     reloadApp(force?: boolean): Promise<boolean>;
     resetToBundle(): Promise<boolean>;
+    hasBundle(app: string): Promise<boolean>;
+    extractApplication(app: string): Promise<boolean>;
     showErrorAlert(): Promise<string>;
     sync(options: ISyncOptions, cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<ISnapshotInfo | undefined>;
     getCurrentVersion(): Promise<ISnapshotInfo | undefined>;

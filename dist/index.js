@@ -142,6 +142,32 @@ var DeployClass = /** @class */ (function () {
             });
         });
     };
+    DeployClass.prototype.hasBundle = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            var deploy;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, deviceready];
+                    case 1:
+                        deploy = _a.sent();
+                        return [2 /*return*/, deploy.hasBundle(app)];
+                }
+            });
+        });
+    };
+    DeployClass.prototype.extractApplication = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            var deploy;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, deviceready];
+                    case 1:
+                        deploy = _a.sent();
+                        return [2 /*return*/, deploy.extractApplication(app)];
+                }
+            });
+        });
+    };
     DeployClass.prototype.showErrorAlert = function () {
         return __awaiter(this, void 0, void 0, function () {
             var deploy;

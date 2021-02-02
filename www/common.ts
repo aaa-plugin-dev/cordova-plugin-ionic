@@ -290,6 +290,49 @@ class IonicDeployImpl {
     return true;
   }
 
+  async hasBundle(app: string): Promise<boolean> {
+    return await this._fileManager.hasBundle(app);
+  }
+
+  async extractApplication(app: string): Promise<boolean> {
+    try {
+      console.log(`Deploy => Get Bundle version for app: ${app}`);
+      const versionId = await this._fileManager.getBundleVersion(app);
+
+      console.log(`Deploy => Prepare availableUpdate prefs`);
+      const prefs = this._savedPreferences;    
+      prefs.availableUpdate = {
+        binaryVersionCode: prefs.binaryVersionCode,
+        binaryVersionName: prefs.binaryVersionName,
+        channel: prefs.channel,
+        state: UpdateState.Available,
+        lastUsed: new Date().toISOString(),
+        url: '',
+        versionId: versionId,
+        buildId: '?',
+        ionicVersion: '',
+      };
+      await this._savePrefs(prefs);
+
+      console.log('Deploy => Prepare Snapshotfolder Directory');
+      await this.prepareUpdateDirectory(prefs.availableUpdate.versionId)
+
+      console.log('Deploy => Extract application bundle');
+      await this._fileManager.extractApplication(app, prefs.availableUpdate.versionId);
+
+      console.log('Deploy => Activate version');
+      await this._extractUpdate();
+
+      console.log('Deploy => Reload Application');
+      await this.reloadApp();
+    } catch(error) {
+      console.log(`Deploy => extractApplication Error: ${error}`);
+      return false;
+    }
+
+    return true;
+  }
+
   getSnapshotCacheDirPath(versionId: string): string {
     return Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId);
   }
@@ -607,27 +650,31 @@ class IonicDeployImpl {
   }
 
   async extractUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
-    if (cancelToken.isCancelled()) {
+    return cancelToken && cancelToken.isCancelled()
+      ? false
+      : this._extractUpdate(progress);
+  }
+
+  async _extractUpdate(progress?: CallbackFunction<number>): Promise<boolean> {
+    const prefs = this._savedPreferences;
+
+    if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
       return false;
-    } else {
-      const prefs = this._savedPreferences;
-
-      if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
-        return false;
-      }
-
-      if (progress) {
-        progress(100);
-      }
-
-      prefs.availableUpdate.state = UpdateState.Ready;
-      if (!prefs.updates) {
-        prefs.updates = {};
-      }
-      prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
-      await this._savePrefs(prefs);
-      return true;
     }
+
+    if (progress) {
+      progress(100);
+    }
+
+    prefs.availableUpdate.state = UpdateState.Ready;
+    if (!prefs.updates) {
+      prefs.updates = {};
+    }
+
+    prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
+    await this._savePrefs(prefs);
+
+    return true;
   }
 
   async reloadApp(force = false): Promise<boolean> {
@@ -1033,6 +1080,24 @@ class FileManager {
     });
   }
 
+  async hasBundle(app: string) {
+    return new Promise<boolean>( (resolve, reject) => {
+      cordova.exec(resolve, reject, 'IonicCordovaCommon', 'hasBundle', [app]);
+    });
+  }
+
+  async getBundleVersion(app: string) {
+    return new Promise<string>( (resolve, reject) => {
+      cordova.exec(resolve, reject, 'IonicCordovaCommon', 'getBundleVersion', [app]);
+    });
+  }
+
+  async extractApplication(app: string, version: string) {
+    return new Promise<boolean>( (resolve, reject) => {
+      cordova.exec(resolve, reject, 'IonicCordovaCommon', 'extractApplication', [app, version]);
+    });
+  }
+
   async getDirectory(path: string, createDirectory = true): Promise<DirectoryEntry> {
     return new Promise<DirectoryEntry>((resolve, reject) => {
       resolveLocalFileSystemURL(
@@ -1239,6 +1304,16 @@ class IonicDeploy implements IDeployPluginAPI {
 
   async resetToBundle(): Promise<boolean> {
     if (!this.disabled) return (await this.delegate).resetToBundle();
+    return false;
+  }
+
+  async hasBundle(app: string): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).hasBundle(app);
+    return false;
+  }
+
+  async extractApplication(app: string): Promise<boolean> {
+    if (!this.disabled) return (await this.delegate).extractApplication(app);
     return false;
   }
 

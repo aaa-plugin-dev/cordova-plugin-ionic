@@ -85,6 +85,24 @@ export interface DeployPluginAPI {
   resetToBundle(): Promise<boolean>;
 
   /**
+   * @description Checks if the native app has a certain bundle included to extract
+   *
+   * @since v5.0.0
+   *
+   * @return true if app bundle is available
+   */
+  hasBundle(app: string): Promise<boolean>;
+
+  /**
+   * @description Extracts an bundled application to its snapshot folder
+   *
+   * @since v5.0.0
+   *
+   * @return true if extract was successful
+   */
+  extractApplication(app: string): Promise<boolean>;
+
+  /**
    * @description Show native error alert in case Angular can't be used
    *
    * @since v5.0.0

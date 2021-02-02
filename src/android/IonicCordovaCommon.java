@@ -120,6 +120,12 @@ public class IonicCordovaCommon extends CordovaPlugin {
       this.resetToBundle(callbackContext);
     } else if (action.equals("showErrorAlert")) {
       this.showErrorAlert(callbackContext);
+    } else if (action.equals("hasBundle")) {
+      this.hasBundle(callbackContext, args.getString(0));
+    } else if (action.equals("getBundleVersion")) {
+      this.getBundleVersion(callbackContext, args.getString(0));
+    } else if (action.equals("extractApplication")) {
+      this.extractApplication(callbackContext, args.getString(0), args.getString(1));
     } else {
       return false;
     }
@@ -634,5 +640,23 @@ public class IonicCordovaCommon extends CordovaPlugin {
 
   private static String toDirUrl(File f) {
     return Uri.fromFile(f).toString() + '/';
+  }
+
+  public void hasBundle(CallbackContext callbackContext, String app) {
+    final PluginResult result = new PluginResult(PluginResult.Status.OK, false);
+    result.setKeepCallback(false);
+    callbackContext.sendPluginResult(result);
+  }
+
+  public void getBundleVersion(CallbackContext callbackContext, String app) {
+    final PluginResult result = new PluginResult(PluginResult.Status.OK, "");
+    result.setKeepCallback(false);
+    callbackContext.sendPluginResult(result);
+  }
+
+  public void extractApplication(CallbackContext callbackContext, String app, String version) {
+    final PluginResult result = new PluginResult(PluginResult.Status.OK, false);
+    result.setKeepCallback(false);
+    callbackContext.sendPluginResult(result);
   }
 }

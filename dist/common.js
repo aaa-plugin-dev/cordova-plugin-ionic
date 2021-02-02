@@ -314,6 +314,69 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
+    IonicDeployImpl.prototype.hasBundle = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0: return [4 /*yield*/, this._fileManager.hasBundle(app)];
+                    case 1: return [2 /*return*/, _a.sent()];
+                }
+            });
+        });
+    };
+    IonicDeployImpl.prototype.extractApplication = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            var versionId, prefs, error_2;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        _a.trys.push([0, 7, , 8]);
+                        console.log("Deploy => Get Bundle version for app: " + app);
+                        return [4 /*yield*/, this._fileManager.getBundleVersion(app)];
+                    case 1:
+                        versionId = _a.sent();
+                        console.log("Deploy => Prepare availableUpdate prefs");
+                        prefs = this._savedPreferences;
+                        prefs.availableUpdate = {
+                            binaryVersionCode: prefs.binaryVersionCode,
+                            binaryVersionName: prefs.binaryVersionName,
+                            channel: prefs.channel,
+                            state: UpdateState.Available,
+                            lastUsed: new Date().toISOString(),
+                            url: '',
+                            versionId: versionId,
+                            buildId: '?',
+                            ionicVersion: '',
+                        };
+                        return [4 /*yield*/, this._savePrefs(prefs)];
+                    case 2:
+                        _a.sent();
+                        console.log('Deploy => Prepare Snapshotfolder Directory');
+                        return [4 /*yield*/, this.prepareUpdateDirectory(prefs.availableUpdate.versionId)];
+                    case 3:
+                        _a.sent();
+                        console.log('Deploy => Extract application bundle');
+                        return [4 /*yield*/, this._fileManager.extractApplication(app, prefs.availableUpdate.versionId)];
+                    case 4:
+                        _a.sent();
+                        console.log('Deploy => Activate version');
+                        return [4 /*yield*/, this._extractUpdate()];
+                    case 5:
+                        _a.sent();
+                        console.log('Deploy => Reload Application');
+                        return [4 /*yield*/, this.reloadApp()];
+                    case 6:
+                        _a.sent();
+                        return [3 /*break*/, 8];
+                    case 7:
+                        error_2 = _a.sent();
+                        console.log("Deploy => extractApplication Error: " + error_2);
+                        return [2 /*return*/, false];
+                    case 8: return [2 /*return*/, true];
+                }
+            });
+        });
+    };
     IonicDeployImpl.prototype.getSnapshotCacheDirPath = function (versionId) {
         return Path.join(this.appInfo.dataDirectory, this.SNAPSHOT_CACHE, versionId);
     };
@@ -457,7 +520,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.downloadUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_1, fullPath, ionicVersion, error_2;
+            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_1, fullPath, ionicVersion, error_3;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -501,9 +564,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         prefs.availableUpdate.ionicVersion = ionicVersion;
                         return [3 /*break*/, 11];
                     case 10:
-                        error_2 = _b.sent();
+                        error_3 = _b.sent();
                         delete prefs.availableUpdate.ionicVersion;
-                        console.log("Deploy => Get ionic version error: " + error_2);
+                        console.log("Deploy => Get ionic version error: " + error_3);
                         return [3 /*break*/, 11];
                     case 11:
                         prefs.availableUpdate.state = UpdateState.Pending;
@@ -673,7 +736,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._fetchManifestWithRetry = function (url, noRetries) {
         return __awaiter(this, void 0, void 0, function () {
-            var error_3;
+            var error_4;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -686,10 +749,10 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._fetchManifest(url)];
                     case 2: return [2 /*return*/, _a.sent()];
                     case 3:
-                        error_3 = _a.sent();
+                        error_4 = _a.sent();
                         if (noRetries === 1) {
-                            console.log("Deploy: Fetch manifest has an error: " + error_3);
-                            throw error_3;
+                            console.log("Deploy: Fetch manifest has an error: " + error_4);
+                            throw error_4;
                         }
                         return [4 /*yield*/, this._fetchManifestWithRetry(url, noRetries - 1)];
                     case 4: return [2 /*return*/, _a.sent()];
@@ -777,13 +840,19 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.extractUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, cancelToken && cancelToken.isCancelled()
+                        ? false
+                        : this._extractUpdate(progress)];
+            });
+        });
+    };
+    IonicDeployImpl.prototype._extractUpdate = function (progress) {
+        return __awaiter(this, void 0, void 0, function () {
             var prefs;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!cancelToken.isCancelled()) return [3 /*break*/, 1];
-                        return [2 /*return*/, false];
-                    case 1:
                         prefs = this._savedPreferences;
                         if (!prefs.availableUpdate || prefs.availableUpdate.state !== UpdateState.Pending) {
                             return [2 /*return*/, false];
@@ -797,7 +866,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         }
                         prefs.updates[prefs.availableUpdate.versionId] = prefs.availableUpdate;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 2:
+                    case 1:
                         _a.sent();
                         return [2 /*return*/, true];
                 }
@@ -960,7 +1029,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanAcgOrMwgDownload = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, snapshotDirectory, bundledAppDir, error_4;
+            var prefs, snapshotDirectory, bundledAppDir, error_5;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1017,8 +1086,8 @@ var IonicDeployImpl = /** @class */ (function () {
                         this._savePrefs(prefs);
                         return [3 /*break*/, 10];
                     case 9:
-                        error_4 = _a.sent();
-                        console.log("Deploy => Ionic cordova files error: " + error_4);
+                        error_5 = _a.sent();
+                        console.log("Deploy => Ionic cordova files error: " + error_5);
                         return [3 /*break*/, 10];
                     case 10:
                         console.log('Deploy => Ionic: cordova file update done...');
@@ -1371,6 +1440,33 @@ var FileManager = /** @class */ (function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         cordova.exec(resolve, reject, 'IonicCordovaCommon', 'downloadFile', [{ url: url, target: path }]);
+                    })];
+            });
+        });
+    };
+    FileManager.prototype.hasBundle = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        cordova.exec(resolve, reject, 'IonicCordovaCommon', 'hasBundle', [app]);
+                    })];
+            });
+        });
+    };
+    FileManager.prototype.getBundleVersion = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        cordova.exec(resolve, reject, 'IonicCordovaCommon', 'getBundleVersion', [app]);
+                    })];
+            });
+        });
+    };
+    FileManager.prototype.extractApplication = function (app, version) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                return [2 /*return*/, new Promise(function (resolve, reject) {
+                        cordova.exec(resolve, reject, 'IonicCordovaCommon', 'extractApplication', [app, version]);
                     })];
             });
         });
@@ -1786,6 +1882,32 @@ var IonicDeploy = /** @class */ (function () {
                         if (!!this.disabled) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.delegate];
                     case 1: return [2 /*return*/, (_a.sent()).resetToBundle()];
+                    case 2: return [2 /*return*/, false];
+                }
+            });
+        });
+    };
+    IonicDeploy.prototype.hasBundle = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!!this.disabled) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.delegate];
+                    case 1: return [2 /*return*/, (_a.sent()).hasBundle(app)];
+                    case 2: return [2 /*return*/, false];
+                }
+            });
+        });
+    };
+    IonicDeploy.prototype.extractApplication = function (app) {
+        return __awaiter(this, void 0, void 0, function () {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        if (!!this.disabled) return [3 /*break*/, 2];
+                        return [4 /*yield*/, this.delegate];
+                    case 1: return [2 /*return*/, (_a.sent()).extractApplication(app)];
                     case 2: return [2 /*return*/, false];
                 }
             });
