@@ -10,6 +10,7 @@ import androidx.appcompat.R;
 import androidx.appcompat.app.AlertDialog;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 import org.apache.cordova.CordovaWebView;
 import org.apache.cordova.CallbackContext;
 import org.apache.cordova.CordovaPlugin;
@@ -25,6 +26,7 @@ import android.app.Activity;
 import android.content.pm.PackageInfo;
 import android.os.Build;
 
+import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -32,8 +34,12 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.URL;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.UUID;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 public class IonicCordovaCommon extends CordovaPlugin {
   public static final String TAG = "IonicCordovaCommon";
@@ -643,20 +649,92 @@ public class IonicCordovaCommon extends CordovaPlugin {
   }
 
   public void hasBundle(CallbackContext callbackContext, String app) {
-    final PluginResult result = new PluginResult(PluginResult.Status.OK, false);
-    result.setKeepCallback(false);
-    callbackContext.sendPluginResult(result);
+    try {
+      String[] bundles = assetManager.list("bundles");
+      List<String> bundleList = Arrays.asList(bundles);
+      boolean hasBundle = bundleList.contains(app + "-app.zip");
+
+      sendResult(callbackContext, PluginResult.Status.OK, hasBundle);
+    } catch(IOException ioException) {
+      sendResult(callbackContext, PluginResult.Status.OK, false);
+    }
   }
 
   public void getBundleVersion(CallbackContext callbackContext, String app) {
-    final PluginResult result = new PluginResult(PluginResult.Status.OK, "");
-    result.setKeepCallback(false);
-    callbackContext.sendPluginResult(result);
+    try {
+      InputStream bundleStream = assetManager.open("bundles/bundles.json");
+      String bundleString = IOUtils.toString(bundleStream);
+      JSONObject bundle = new JSONObject(bundleString);
+      if (bundle.has(app)) {
+        String versionId = bundle.getString(app);
+        Log.i(TAG, "Deploy => Version for app " + app + " is " + versionId);
+        sendResult(callbackContext, PluginResult.Status.OK, versionId);
+      } else {
+        Log.e(TAG, "Deploy => No version for app " + app + " found in bundles.json");
+        sendResult(callbackContext, PluginResult.Status.ERROR, "No version configured");
+      }
+    } catch (Exception ex) {
+      Log.e(TAG, "Deploy => No version for app " + app + ": " + ex.getMessage());
+      sendResult(callbackContext, PluginResult.Status.ERROR, ex.getMessage());
+    }
   }
 
-  public void extractApplication(CallbackContext callbackContext, String app, String version) {
-    final PluginResult result = new PluginResult(PluginResult.Status.OK, false);
-    result.setKeepCallback(false);
-    callbackContext.sendPluginResult(result);
+  public void extractApplication(CallbackContext callbackContext, String app, String versionId) {
+    InputStream is;
+    ZipInputStream zis;
+    String targetPath = String.format("%s/ionic_built_snapshots/%s/", cordova.getActivity().getFilesDir(), versionId);
+    try
+    {
+      String filename;
+      is = assetManager.open("bundles/" + app + "-app.zip");
+      zis = new ZipInputStream(new BufferedInputStream(is));
+      ZipEntry ze;
+      byte[] buffer = new byte[1024];
+      int count;
+
+      while ((ze = zis.getNextEntry()) != null)
+      {
+        filename = ze.getName();
+        String fullFilename = (targetPath + filename).replace(app + "-app/", "");
+        Log.d(TAG, "Deploy => Extract Application: " + fullFilename);
+
+        if (ze.isDirectory()) {
+          File fmd = new File(fullFilename);
+          fmd.mkdirs();
+          continue;
+        }
+
+        FileOutputStream fOut = new FileOutputStream(fullFilename);
+
+        while ((count = zis.read(buffer)) != -1)
+        {
+          fOut.write(buffer, 0, count);
+        }
+
+        fOut.close();
+        zis.closeEntry();
+      }
+
+      zis.close();
+
+      sendResult(callbackContext, PluginResult.Status.OK, true);
+    }
+    catch(IOException ex)
+    {
+      Log.e(TAG, "Deploy => No version for app " + app + ": " + ex.getMessage());
+      sendResult(callbackContext, PluginResult.Status.ERROR, ex.getMessage());
+    }
+  }
+
+  private void sendResult(CallbackContext callbackContext, PluginResult.Status status, boolean result) {
+    final PluginResult pluginResult = new PluginResult(status, result);
+    pluginResult.setKeepCallback(false);
+    callbackContext.sendPluginResult(pluginResult);
+  }
+
+  private void sendResult(CallbackContext callbackContext, PluginResult.Status status, String result) {
+    final PluginResult pluginResult = new PluginResult(status, result);
+    pluginResult.setKeepCallback(false);
+    callbackContext.sendPluginResult(pluginResult);
   }
 }
