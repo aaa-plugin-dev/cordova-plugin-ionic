@@ -149,7 +149,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
     try {
       files = assetManager.list(assetPath);
     } catch (IOException e) {
-      Log.e("tag", "Failed to get asset file list.", e);
+      Log.e(TAG, "Deploy => Native -> Failed to get asset file list.", e);
     }
     if (files != null) for (String filename : files) {
       InputStream in = null;
@@ -170,7 +170,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
         out = new FileOutputStream(outFile);
         copyFile(in, out);
       } catch(IOException e) {
-        Log.e("tag", "Failed to copy asset file: " + filename, e);
+        Log.e(TAG, "Deploy => Native -> Failed to copy asset file: " + filename, e);
       }
       finally {
         if (in != null) {
@@ -204,7 +204,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
    *
    */
   public void copyTo(CallbackContext callbackContext, JSONObject options) throws JSONException {
-    Log.d(TAG, "copyTo called with " + options.toString());
+    Log.d(TAG, "Deploy => Native -> copyTo called with " + options.toString());
     PluginResult result;
 
     try {
@@ -247,7 +247,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
    *
    */
   public void copyFile(CallbackContext callbackContext, JSONObject options) throws JSONException {
-    Log.d(TAG, "copy file: " + options.toString());
+    Log.d(TAG, "Deploy => Native -> copy file: " + options.toString());
 
     boolean isAsset = options.getString("directory").equals("APPLICATION");
     String fromFile = options.getString("fromFile");
@@ -286,7 +286,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
    *
    */
   public void remove(CallbackContext callbackContext, JSONObject options) throws JSONException {
-    Log.d(TAG, "recursiveRemove called with " + options.toString());
+    Log.d(TAG, "Deploy => Native -> recursiveRemove called with " + options.toString());
     String target = options.getString("target");
     File dest = new File(target);
     final PluginResult result;
@@ -313,7 +313,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
   }
 
   public void downloadFile(CallbackContext callbackContext, JSONObject options) throws JSONException {
-    Log.d(TAG, "downloadFile called with " + options.toString());
+    Log.d(TAG, "Deploy => Native -> downloadFile called with " + options.toString());
     String url = options.getString("url");
     String dest = options.getString("target");
     final PluginResult result;
@@ -336,7 +336,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
       }
 
     } catch (Exception e) {
-      Log.e(TAG, "downloadFile error", e);
+      Log.e(TAG, "Deploy => Native -> downloadFile error", e);
       result = new PluginResult(PluginResult.Status.ERROR, e.getMessage());
       result.setKeepCallback(false);
       callbackContext.sendPluginResult(result);
@@ -372,12 +372,12 @@ public class IonicCordovaCommon extends CordovaPlugin {
       j.put("device", this.uuid);
       j.put("dataDirectory", toDirUrl(cordova.getActivity().getFilesDir()));
 
-      Log.d(TAG, "Got package info. Version: " + versionName + ", bundleName: " + name + ", versionCode: " + versionCode);
+      Log.d(TAG, "Deploy => Native -> Got package info. Version: " + versionName + ", bundleName: " + name + ", versionCode: " + versionCode);
       final PluginResult result = new PluginResult(PluginResult.Status.OK, j);
       result.setKeepCallback(false);
       callbackContext.sendPluginResult(result);
     } catch(Exception ex) {
-      Log.e(TAG, "Unable to get package info", ex);
+      Log.e(TAG, "Deploy => Native -> Unable to get package info", ex);
       callbackContext.error(ex.toString());
     }
   }
@@ -403,7 +403,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
     SharedPreferences prefs = this.cordova.getActivity().getApplicationContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     String prefsString = prefs.getString(this.CUSTOM_PREFS_KEY, null);
     if (prefsString != null) {
-      Log.i(TAG, "Found custom prefs: " + prefsString);
+      Log.i(TAG, "Deploy => Native -> Found custom prefs: " + prefsString);
       JSONObject customPrefs = new JSONObject(prefsString);
       return customPrefs;
     }
@@ -415,14 +415,14 @@ public class IonicCordovaCommon extends CordovaPlugin {
    *
    */
   public void configure(CallbackContext callbackContext, JSONObject newConfig) throws JSONException {
-    Log.i(TAG, "Set custom config called with " + newConfig.toString());
+    Log.i(TAG, "Deploy => Native -> Set custom config called with " + newConfig.toString());
     SharedPreferences prefs = this.cordova.getActivity().getApplicationContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     SharedPreferences.Editor editor = prefs.edit();
     JSONObject storedConfig = this.getCustomConfig();
     this.mergeObjects(storedConfig, newConfig);
     editor.putString(this.CUSTOM_PREFS_KEY, storedConfig.toString());
     editor.commit();
-    Log.i(TAG, "config updated");
+    Log.i(TAG, "Deploy => Native -> config updated");
 
     final PluginResult result = new PluginResult(PluginResult.Status.OK, storedConfig);
     result.setKeepCallback(false);
@@ -444,7 +444,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
     String prefsString = prefs.getString(this.PREFS_KEY, null);
     if (prefsString != null) {
       JSONObject savedPrefs;
-      Log.i(TAG, "Found saved prefs: " + prefsString);
+      Log.i(TAG, "Deploy => Native -> Found saved prefs: " + prefsString);
       // grab the save prefs
       savedPrefs = new JSONObject(prefsString);
 
@@ -467,7 +467,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
       result.setKeepCallback(false);
       callbackContext.sendPluginResult(result);
     } catch(Exception ex) {
-      Log.e(TAG, "Unable to get preferences", ex);
+      Log.e(TAG, "Deploy => Native -> Unable to get preferences", ex);
       callbackContext.error(ex.toString());
     }
   }
@@ -477,10 +477,10 @@ public class IonicCordovaCommon extends CordovaPlugin {
       @Override
       public void run() {
         try {
-          Log.i(TAG, "Warm restarting main activity");
+          Log.i(TAG, "Deploy => Native -> Warm restarting main activity");
           cordova.getActivity().recreate();
         } catch (Exception ex) {
-          Log.e(TAG, "Unable to warm restart main activity: " + ex.getMessage());
+          Log.e(TAG, "Deploy => Native -> Unable to warm restart main activity: " + ex.getMessage());
         }
       }
     });
@@ -501,7 +501,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
       customPrefs.remove("currentVersionId");
       customPrefs.remove("currentVersionForAppId");
     } catch (JSONException e) {
-      Log.e(TAG, "VersionCheck => Ionic Prefs Json Error: " + e.getMessage(), e);
+      Log.e(TAG, "Deploy => Native -> Ionic Prefs Json Error: " + e.getMessage(), e);
     }
 
     SharedPreferences.Editor prefsEdit = prefs.edit();
@@ -526,7 +526,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
         try {
           instance.showErrorAlert(callbackContext, instance.cordova.getActivity());
         } catch (Exception ex) {
-          Log.e(TAG, "Error showig alert: " + ex.getMessage());
+          Log.e(TAG, "Deploy => Native -> Error showig alert: " + ex.getMessage());
         }
       }
     });
@@ -576,7 +576,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
       versionName = pInfo.versionName;
       versionCode = pInfo.versionCode;
     } catch(Exception ex) {
-      Log.e(TAG, "Unable to get package info", ex);
+      Log.e(TAG, "Deploy => Native -> Unable to get package info", ex);
       versionName = "unknown";
       versionCode = 0;
     }
@@ -596,7 +596,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
     j.put("binaryVersionCode", versionCode);
 
 
-    Log.d(TAG, "Got Native Prefs for AppID: " + appId);
+    Log.d(TAG, "Deploy => Native -> Got Native Prefs for AppID: " + appId);
     return j;
   }
 
@@ -610,7 +610,7 @@ public class IonicCordovaCommon extends CordovaPlugin {
       try {
         obj1.putOpt(key, obj2.opt(key));
       } catch (JSONException ex) {
-        Log.d(TAG, "key didn't exist when merging object");
+        Log.d(TAG, "Deploy => Native -> key didn't exist when merging object");
       }
     }
   }
@@ -621,12 +621,12 @@ public class IonicCordovaCommon extends CordovaPlugin {
    * @param newPrefs
    */
   public void setPreferences(CallbackContext callbackContext, JSONObject newPrefs) {
-    Log.i(TAG, "Set preferences called with prefs" + newPrefs.toString());
+    Log.i(TAG, "Deploy => Native -> Set preferences called with prefs" + newPrefs.toString());
     SharedPreferences prefs = this.cordova.getActivity().getApplicationContext().getSharedPreferences("com.ionic.deploy.preferences", Context.MODE_PRIVATE);
     SharedPreferences.Editor editor = prefs.edit();
     editor.putString(this.PREFS_KEY, newPrefs.toString());
     editor.commit();
-    Log.i(TAG, "preferences updated");
+    Log.i(TAG, "Deploy => Native -> preferences updated");
     final PluginResult result = new PluginResult(PluginResult.Status.OK, newPrefs);
     result.setKeepCallback(false);
     callbackContext.sendPluginResult(result);

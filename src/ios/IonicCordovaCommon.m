@@ -43,7 +43,7 @@
 
     NSError *copyError = nil;
     if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:toFile error:&copyError]) {
-        NSLog(@"Error copying files: %@", [copyError localizedDescription]);
+        NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
         return;
     }
@@ -53,7 +53,7 @@
 - (void) remove:(CDVInvokedUrlCommand*)command {
     NSDictionary *options = command.arguments[0];
     NSString *path = options[@"target"];
-    NSLog(@"Got remove path: %@", path);
+    NSLog(@"Deploy => Native -> Got remove path: %@", path);
     NSError *removeError = nil;
     if (![[NSFileManager defaultManager] removeItemAtPath:path error:&removeError]) {
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [removeError localizedDescription]]  callbackId:command.callbackId];
@@ -64,7 +64,7 @@
 
 - (void) copyTo:(CDVInvokedUrlCommand*)command {
     NSDictionary *options = command.arguments[0];
-    NSLog(@"Got copyTo: %@", options);
+    NSLog(@"Deploy => Native -> Got copyTo: %@", options);
     NSString *srcDir = options[@"source"][@"directory"];
     NSString *srcPath = options[@"source"][@"path"];
     NSString *dest = options[@"target"];
@@ -84,7 +84,7 @@
     [[NSFileManager defaultManager] removeItemAtPath:dest error:nil];
     NSError *copyError = nil;
     if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:dest error:&copyError]) {
-        NSLog(@"Error copying files: %@", [copyError localizedDescription]);
+        NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
         return;
     }
@@ -95,19 +95,19 @@
     NSDictionary *options = command.arguments[0];
     NSString *target = options[@"target"];
     NSString *urlStr = options[@"url"];
-    NSLog(@"downloadFile => Got downloadFile: %@", options);
+    NSLog(@"Deploy => Native -> downloadFile => Got downloadFile: %@", options);
     
     NSURLRequest *request = [NSURLRequest requestWithURL:[NSURL URLWithString:urlStr] cachePolicy:NSURLRequestReloadIgnoringCacheData timeoutInterval:20.0];
     NSOperationQueue *queue = [[NSOperationQueue alloc] init];
     [NSURLConnection sendAsynchronousRequest:request queue:queue completionHandler:^(NSURLResponse *response, NSData *data, NSError *error) {
         if (error) {
-            NSLog(@"downloadFile => Download Error:%@",error.description);
+            NSLog(@"Deploy => Native -> downloadFile => Download Error:%@",error.description);
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [error localizedDescription]]  callbackId:command.callbackId];
         }
         if (data) {
             [[NSFileManager defaultManager] createDirectoryAtPath:[target stringByDeletingLastPathComponent] withIntermediateDirectories:YES attributes:nil error:nil];
             [data writeToFile:target atomically:YES];
-            NSLog(@"downloadFile => File is saved to %@", target);
+            NSLog(@"Deploy => Native -> downloadFile => File is saved to %@", target);
             [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
         }
     }];
@@ -186,7 +186,7 @@
     json[@"binaryVersionName"] = versionName;
     json[@"device"] = uuid;
     json[@"dataDirectory"] = [[NSURL fileURLWithPath:cordovaDataDirectory] absoluteString];
-    NSLog(@"Got app info: %@", json);
+    NSLog(@"Deploy => Native -> Got app info: %@", json);
 
     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:json] callbackId:command.callbackId];
 
@@ -204,30 +204,30 @@
 
     if (savedPrefs!= nil) {
         
-        NSLog(@"found some saved prefs doing precedence ops: %@", savedPrefs);
+        NSLog(@"Deploy => Native -> found some saved prefs doing precedence ops: %@", savedPrefs);
         // Merge with most up to date Native Settings
         [savedPrefs addEntriesFromDictionary:nativeConfig];
 
         // Merge with any custom settings
         [savedPrefs addEntriesFromDictionary:customConfig];
 
-        NSLog(@"Returning saved prefs: %@", savedPrefs);
+        NSLog(@"Deploy => Native -> Returning saved prefs: %@", savedPrefs);
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary: savedPrefs] callbackId:command.callbackId];
         return;
     }
 
     // No saved prefs found get them all from config
     // Make sure to initialize empty updates object
-    NSLog(@"initing updates key");
+    NSLog(@"Deploy => Native -> initing updates key");
     nativeConfig[@"updates"] = [[NSDictionary alloc] init];
-    NSLog(@"Initialized App Prefs: %@", nativeConfig);
+    NSLog(@"Deploy => Native -> Initialized App Prefs: %@", nativeConfig);
 
     [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsDictionary:nativeConfig] callbackId:command.callbackId];
 }
 
 - (void) setPreferences:(CDVInvokedUrlCommand*)command {
     NSDictionary *json = command.arguments[0];
-    NSLog(@"Got prefs to save: %@", json);
+    NSLog(@"Deploy => Native -> Got prefs to save: %@", json);
     [[NSUserDefaults standardUserDefaults] setObject:json forKey:@"ionicDeploySavedPreferences"];
     [[NSUserDefaults standardUserDefaults] synchronize];
 
@@ -260,7 +260,7 @@
     json[@"binaryVersionCode"] = versionCode;
     json[@"binaryVersion"] = versionName;
     json[@"binaryVersionName"] = versionName;
-    NSLog(@"Got Native app preferences: %@", json);
+    NSLog(@"Deploy => Native -> Got Native app preferences: %@", json);
     return json;
 }
 
@@ -270,17 +270,17 @@
     NSDictionary *immutableConfig = [prefs objectForKey:@"ionicDeployCustomPreferences"];
     NSMutableDictionary *customConfig = [immutableConfig mutableCopy];
     if (customConfig!= nil) {
-        NSLog(@"Found custom config: %@", customConfig);
+        NSLog(@"Deploy => Native -> Found custom config: %@", customConfig);
         return customConfig;
     }
-    NSLog(@"No custom config found");
+    NSLog(@"Deploy => Native -> No custom config found");
     NSMutableDictionary *json = [[NSMutableDictionary alloc] init];
     return json;
 }
 
 - (void) configure:(CDVInvokedUrlCommand *)command {
     NSDictionary *newConfig = command.arguments[0];
-    NSLog(@"Got new config to save: %@", newConfig);
+    NSLog(@"Deploy => Native -> Got new config to save: %@", newConfig);
     NSMutableDictionary *storedConfig = [self getCustomConfig];
     [storedConfig addEntriesFromDictionary:newConfig];
     [[NSUserDefaults standardUserDefaults] setObject:storedConfig forKey:@"ionicDeployCustomPreferences"];

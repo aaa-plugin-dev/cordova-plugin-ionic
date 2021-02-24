@@ -225,9 +225,7 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 2:
                         _b.sent();
                         return [2 /*return*/];
-                    case 3: return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
-                    case 4:
-                        _b.sent();
+                    case 3:
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
@@ -237,42 +235,42 @@ var IonicDeployImpl = /** @class */ (function () {
                         updateMethod = this._savedPreferences.updateMethod;
                         _a = updateMethod;
                         switch (_a) {
-                            case UpdateMethod.AUTO: return [3 /*break*/, 5];
-                            case UpdateMethod.NONE: return [3 /*break*/, 11];
+                            case UpdateMethod.AUTO: return [3 /*break*/, 4];
+                            case UpdateMethod.NONE: return [3 /*break*/, 10];
                         }
-                        return [3 /*break*/, 12];
-                    case 5:
+                        return [3 /*break*/, 11];
+                    case 4:
                         // NOTE: call sync with background as override to avoid sync
                         // reloading the app and manually reload always once sync has
                         // set the correct currentVersionId
                         console.log('Deploy => calling _sync');
-                        _b.label = 6;
-                    case 6:
-                        _b.trys.push([6, 8, , 9]);
+                        _b.label = 5;
+                    case 5:
+                        _b.trys.push([5, 7, , 8]);
                         cancelToken = new tokens_1.CancelToken();
                         return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken)];
-                    case 7:
+                    case 6:
                         _b.sent();
-                        return [3 /*break*/, 9];
-                    case 8:
+                        return [3 /*break*/, 8];
+                    case 7:
                         e_1 = _b.sent();
                         console.warn("Deploy => " + e_1);
                         console.warn('Deploy => Sync failed. Defaulting to last available version.');
-                        return [3 /*break*/, 9];
-                    case 9:
+                        return [3 /*break*/, 8];
+                    case 8:
                         console.log('Deploy => calling _reload');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 10:
+                    case 9:
                         _b.sent();
                         console.log('Deploy => done _reloading');
-                        return [3 /*break*/, 14];
-                    case 11:
+                        return [3 /*break*/, 13];
+                    case 10:
                         this.reloadApp();
-                        return [3 /*break*/, 14];
-                    case 12: 
+                        return [3 /*break*/, 13];
+                    case 11: 
                     // NOTE: default anything that doesn't explicitly match to background updates
                     return [4 /*yield*/, this.reloadApp()];
-                    case 13:
+                    case 12:
                         // NOTE: default anything that doesn't explicitly match to background updates
                         _b.sent();
                         try {
@@ -284,7 +282,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             console.warn('Deploy => Background sync failed. Unable to check for new updates.');
                         }
                         return [2 /*return*/];
-                    case 14: return [2 /*return*/];
+                    case 13: return [2 /*return*/];
                 }
             });
         });
@@ -821,55 +819,57 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 1:
                         _a.sent();
                         _a.label = 2;
-                    case 2:
-                        if (!prefs.currentVersionId) return [3 /*break*/, 12];
-                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
+                    case 2: return [4 /*yield*/, this.cleanCurrentVersionIfStale()];
                     case 3:
-                        if (!_a.sent()) return [3 /*break*/, 8];
+                        _a.sent();
+                        if (!prefs.currentVersionId) return [3 /*break*/, 13];
+                        return [4 /*yield*/, this._isRunningVersion(prefs.currentVersionId)];
+                    case 4:
+                        if (!_a.sent()) return [3 /*break*/, 9];
                         console.log("Deploy => Already running version " + prefs.currentVersionId);
                         prefs.currentVersionForAppId = prefs.appId;
                         return [4 /*yield*/, this._savePrefs(prefs)];
-                    case 4:
+                    case 5:
                         _a.sent();
                         channel.onIonicProReady.fire();
                         Ionic.WebView.persistServerBasePath();
                         return [4 /*yield*/, this.cleanupVersions()];
-                    case 5:
-                        _a.sent();
-                        if (!force) return [3 /*break*/, 7];
-                        return [4 /*yield*/, this.forceReloadApp()];
                     case 6:
                         _a.sent();
-                        _a.label = 7;
-                    case 7: return [2 /*return*/, false];
-                    case 8:
+                        if (!force) return [3 /*break*/, 8];
+                        return [4 /*yield*/, this.forceReloadApp()];
+                    case 7:
+                        _a.sent();
+                        _a.label = 8;
+                    case 8: return [2 /*return*/, false];
+                    case 9:
                         // Is the current version on the device?
                         if (!prefs.updates) {
                             prefs.updates = {};
                         }
-                        if (!!(prefs.currentVersionId in prefs.updates)) return [3 /*break*/, 11];
+                        if (!!(prefs.currentVersionId in prefs.updates)) return [3 /*break*/, 12];
                         console.error("Deploy => Missing version " + prefs.currentVersionId);
                         channel.onIonicProReady.fire();
-                        if (!force) return [3 /*break*/, 10];
+                        if (!force) return [3 /*break*/, 11];
                         return [4 /*yield*/, this.forceReloadApp()];
-                    case 9:
+                    case 10:
                         _a.sent();
-                        _a.label = 10;
-                    case 10: return [2 /*return*/, false];
-                    case 11:
+                        _a.label = 11;
+                    case 11: return [2 /*return*/, false];
+                    case 12:
                         newLocation = this.getSnapshotCacheDir(prefs.currentVersionId);
                         console.log('Deploy => setServerBasePath: ' + newLocation);
                         Ionic.WebView.setServerBasePath(newLocation);
                         return [2 /*return*/, true];
-                    case 12:
+                    case 13:
                         console.log('Deploy => Reload requested but no current version using bundle');
                         channel.onIonicProReady.fire();
-                        if (!force) return [3 /*break*/, 14];
+                        if (!force) return [3 /*break*/, 15];
                         return [4 /*yield*/, this.forceReloadApp()];
-                    case 13:
+                    case 14:
                         _a.sent();
-                        _a.label = 14;
-                    case 14: return [2 /*return*/, true];
+                        _a.label = 15;
+                    case 15: return [2 /*return*/, true];
                 }
             });
         });

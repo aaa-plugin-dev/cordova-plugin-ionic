@@ -222,7 +222,6 @@ class IonicDeployImpl {
       return;
     }
 
-    await this.cleanCurrentVersionIfStale();
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
       console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
@@ -641,6 +640,8 @@ class IonicDeployImpl {
       delete prefs.availableUpdate;
       await this._savePrefs(prefs);
     }
+
+    await this.cleanCurrentVersionIfStale();
 
     // Is there a non-binary version deployed?
     if (prefs.currentVersionId) {
