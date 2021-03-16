@@ -212,7 +212,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._handleInitialPreferenceState = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var isSnapshotGood, isOnline, updateMethod, _a, cancelToken, e_1, cancelToken;
+            var isSnapshotGood, isOnline, updateMethod, _a, cancelToken, e_1, cancelToken, e_2;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0: return [4 /*yield*/, this.checkCoreIntegrity()];
@@ -238,7 +238,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             case UpdateMethod.AUTO: return [3 /*break*/, 4];
                             case UpdateMethod.NONE: return [3 /*break*/, 10];
                         }
-                        return [3 /*break*/, 11];
+                        return [3 /*break*/, 12];
                     case 4:
                         // NOTE: call sync with background as override to avoid sync
                         // reloading the app and manually reload always once sync has
@@ -263,26 +263,32 @@ var IonicDeployImpl = /** @class */ (function () {
                     case 9:
                         _b.sent();
                         console.log('Deploy => done _reloading');
-                        return [3 /*break*/, 13];
-                    case 10:
-                        this.reloadApp();
-                        return [3 /*break*/, 13];
-                    case 11: 
+                        return [3 /*break*/, 18];
+                    case 10: return [4 /*yield*/, this.reloadApp()];
+                    case 11:
+                        _b.sent();
+                        return [3 /*break*/, 18];
+                    case 12: 
                     // NOTE: default anything that doesn't explicitly match to background updates
                     return [4 /*yield*/, this.reloadApp()];
-                    case 12:
+                    case 13:
                         // NOTE: default anything that doesn't explicitly match to background updates
                         _b.sent();
-                        try {
-                            cancelToken = new tokens_1.CancelToken();
-                            this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken);
-                        }
-                        catch (e) {
-                            console.warn("Deploy => " + e);
-                            console.warn('Deploy => Background sync failed. Unable to check for new updates.');
-                        }
-                        return [2 /*return*/];
-                    case 13: return [2 /*return*/];
+                        _b.label = 14;
+                    case 14:
+                        _b.trys.push([14, 16, , 17]);
+                        cancelToken = new tokens_1.CancelToken();
+                        return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken)];
+                    case 15:
+                        _b.sent();
+                        return [3 /*break*/, 17];
+                    case 16:
+                        e_2 = _b.sent();
+                        console.warn("Deploy => " + e_2);
+                        console.warn('Deploy => Background sync failed. Unable to check for new updates.');
+                        return [3 /*break*/, 17];
+                    case 17: return [2 /*return*/];
+                    case 18: return [2 /*return*/];
                 }
             });
         });
@@ -1060,7 +1066,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._cleanSnapshotDir = function (versionId) {
         return __awaiter(this, void 0, void 0, function () {
-            var timer, snapshotDir, e_2;
+            var timer, snapshotDir, e_3;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1075,7 +1081,7 @@ var IonicDeployImpl = /** @class */ (function () {
                         timer.end();
                         return [3 /*break*/, 4];
                     case 3:
-                        e_2 = _a.sent();
+                        e_3 = _a.sent();
                         console.log('Deploy => No directory found for snapshot no need to delete');
                         timer.end();
                         return [3 /*break*/, 4];
@@ -1382,7 +1388,7 @@ var FileManager = /** @class */ (function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
                         resolveLocalFileSystemURL(path, function (entry) { return entry.isDirectory ? resolve(entry) : reject(); }, function () { return __awaiter(_this, void 0, void 0, function () {
-                            var components, child, parent_1, e_3;
+                            var components, child, parent_1, e_4;
                             var _this = this;
                             return __generator(this, function (_a) {
                                 switch (_a.label) {
@@ -1415,8 +1421,8 @@ var FileManager = /** @class */ (function () {
                                         }); }, reject);
                                         return [3 /*break*/, 4];
                                     case 3:
-                                        e_3 = _a.sent();
-                                        reject(e_3);
+                                        e_4 = _a.sent();
+                                        reject(e_4);
                                         return [3 /*break*/, 4];
                                     case 4: return [2 /*return*/];
                                 }
@@ -1428,7 +1434,7 @@ var FileManager = /** @class */ (function () {
     };
     FileManager.prototype.fileExists = function (path, fileName) {
         return __awaiter(this, void 0, void 0, function () {
-            var e_4;
+            var e_5;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1438,7 +1444,7 @@ var FileManager = /** @class */ (function () {
                         _a.sent();
                         return [2 /*return*/, true];
                     case 2:
-                        e_4 = _a.sent();
+                        e_5 = _a.sent();
                         return [2 /*return*/, false];
                     case 3: return [2 /*return*/];
                 }
@@ -1514,7 +1520,7 @@ var FileManager = /** @class */ (function () {
 var IonicDeploy = /** @class */ (function () {
     function IonicDeploy(parent) {
         this.lastPause = 0;
-        this.minBackgroundDuration = 10;
+        this.minBackgroundDuration = 30;
         this.disabled = false;
         this.supportsPartialNativeUpdates = true;
         this.parent = parent;
@@ -1585,6 +1591,7 @@ var IonicDeploy = /** @class */ (function () {
                 switch (_a.label) {
                     case 0:
                         if (!(!this.disabled && this.lastPause && this.minBackgroundDuration && Date.now() - this.lastPause > this.minBackgroundDuration * 1000)) return [3 /*break*/, 3];
+                        console.warn("Deploy => Application reload after resume: " + (Date.now() - this.lastPause) / 1000 + "s > " + this.minBackgroundDuration + "s");
                         return [4 /*yield*/, this.delegate];
                     case 1: return [4 /*yield*/, (_a.sent())._handleInitialPreferenceState()];
                     case 2:

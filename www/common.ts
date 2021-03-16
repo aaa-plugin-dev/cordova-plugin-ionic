@@ -248,14 +248,14 @@ class IonicDeployImpl {
         console.log('Deploy => done _reloading');
         break;
       case UpdateMethod.NONE:
-        this.reloadApp();
+        await this.reloadApp();
         break;
       default:
         // NOTE: default anything that doesn't explicitly match to background updates
         await this.reloadApp();
         try {
           const cancelToken = new CancelToken();
-          this.sync({updateMethod: UpdateMethod.BACKGROUND}, cancelToken);
+          await this.sync({updateMethod: UpdateMethod.BACKGROUND}, cancelToken);
         } catch (e) {
           console.warn(`Deploy => ${e}`);
           console.warn('Deploy => Background sync failed. Unable to check for new updates.');
@@ -1104,7 +1104,7 @@ class IonicDeploy implements IDeployPluginAPI {
   private delegate: Promise<IonicDeployImpl>;
   private fetchIsAvailable: boolean;
   private lastPause = 0;
-  private minBackgroundDuration = 10;
+  private minBackgroundDuration = 30;
   private disabled = false;
   public supportsPartialNativeUpdates = true;
 
@@ -1151,6 +1151,7 @@ class IonicDeploy implements IDeployPluginAPI {
 
   async onResume() {
     if (!this.disabled && this.lastPause && this.minBackgroundDuration && Date.now() - this.lastPause > this.minBackgroundDuration * 1000) {
+      console.warn(`Deploy => Application reload after resume: ${(Date.now() - this.lastPause)/1000}s > ${this.minBackgroundDuration}s`);
       await (await this.delegate)._handleInitialPreferenceState();
     }
   }
