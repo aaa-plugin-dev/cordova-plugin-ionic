@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.CancelToken = void 0;
 var CancelToken = /** @class */ (function () {
     function CancelToken() {
         this.cancelled = false;

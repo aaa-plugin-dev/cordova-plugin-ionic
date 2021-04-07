@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.isPluginConfig = void 0;
 function isPluginConfig(o) {
     var obj = o;
     var allowedKeys = ['appId', 'channel', 'disabled', 'host', 'maxVersions', 'minBackgroundDuration', 'updateMethod'];
