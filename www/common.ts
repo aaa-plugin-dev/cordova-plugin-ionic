@@ -1075,11 +1075,14 @@ class FileManager {
   }
 
   async getFileWithPlatform(fullPath: string, platform: string): Promise<string> {
+    console.log(`Deploy => fullPath: ${fullPath}; platform: ${platform}`);
     let normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+    console.log(`Deploy => before normalizedURL: ${normalizedURL};`);
     if (normalizedURL.startsWith('undefined')) {
       const prefix = platform === 'ios' ? 'ionic://localhost' : 'http://localhost';
       normalizedURL = normalizedURL.replace('undefined', prefix);
     }
+    console.log(`Deploy => after normalizedURL: ${normalizedURL};`);
     const req = await fetch(normalizedURL);
     return req.text();
   }

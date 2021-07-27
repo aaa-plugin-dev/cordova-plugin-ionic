@@ -1472,11 +1472,14 @@ var FileManager = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        console.log("Deploy => fullPath: " + fullPath + "; platform: " + platform);
                         normalizedURL = Ionic.WebView.convertFileSrc(fullPath);
+                        console.log("Deploy => before normalizedURL: " + normalizedURL + ";");
                         if (normalizedURL.startsWith('undefined')) {
                             prefix = platform === 'ios' ? 'ionic://localhost' : 'http://localhost';
                             normalizedURL = normalizedURL.replace('undefined', prefix);
                         }
+                        console.log("Deploy => after normalizedURL: " + normalizedURL + ";");
                         return [4 /*yield*/, fetch(normalizedURL)];
                     case 1:
                         req = _a.sent();
