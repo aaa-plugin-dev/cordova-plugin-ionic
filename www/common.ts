@@ -496,11 +496,12 @@ class IonicDeployImpl {
             await downloadFile(entry);
             success = true;
           } catch (err) {
-            if (error.indexOf('to be offline')) {
+            error = `${err}`;
+            if (error.indexOf('to be offline') >= 0) {
               i = maxTries;
             } else {
               i++;
-              error = `${err}`;
+              
 
               console.log(`Deploy => ${i} File download error ${entry.href} with error: ${err}`);
               this._wait(1000);
