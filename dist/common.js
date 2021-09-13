@@ -595,10 +595,15 @@ var IonicDeployImpl = /** @class */ (function () {
                                             return [3 /*break*/, 6];
                                         case 5:
                                             err_2 = _a.sent();
-                                            i++;
-                                            error = "" + err_2;
-                                            console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_2);
-                                            this._wait(1000);
+                                            if (error.indexOf('to be offline')) {
+                                                i = maxTries;
+                                            }
+                                            else {
+                                                i++;
+                                                error = "" + err_2;
+                                                console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_2);
+                                                this._wait(1000);
+                                            }
                                             return [3 /*break*/, 6];
                                         case 6: return [3 /*break*/, 2];
                                         case 7:
