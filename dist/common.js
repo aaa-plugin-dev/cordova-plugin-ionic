@@ -578,40 +578,37 @@ var IonicDeployImpl = /** @class */ (function () {
                                         case 0:
                                             if (!cancelToken.isCancelled()) return [3 /*break*/, 1];
                                             console.log("Deploy => Download cancelled for file: " + entry.href);
-                                            return [3 /*break*/, 8];
+                                            return [3 /*break*/, 9];
                                         case 1:
                                             maxTries = 10;
                                             i = 0, success = false, error = '';
                                             _a.label = 2;
                                         case 2:
-                                            if (!(!success && i < maxTries && !cancelToken.isCancelled())) return [3 /*break*/, 7];
+                                            if (!(!success && i < maxTries && !cancelToken.isCancelled())) return [3 /*break*/, 8];
                                             _a.label = 3;
                                         case 3:
-                                            _a.trys.push([3, 5, , 6]);
+                                            _a.trys.push([3, 5, , 7]);
                                             return [4 /*yield*/, downloadFile(entry)];
                                         case 4:
                                             _a.sent();
                                             success = true;
-                                            return [3 /*break*/, 6];
+                                            return [3 /*break*/, 7];
                                         case 5:
                                             err_2 = _a.sent();
+                                            i++;
                                             error = "" + err_2;
-                                            if (error.indexOf('to be offline') >= 0) {
-                                                i = maxTries;
-                                            }
-                                            else {
-                                                i++;
-                                                console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_2);
-                                                this._wait(1000);
-                                            }
-                                            return [3 /*break*/, 6];
-                                        case 6: return [3 /*break*/, 2];
-                                        case 7:
+                                            console.log("Deploy => " + i + " File download error " + entry.href + " with error: " + err_2);
+                                            return [4 /*yield*/, this._delay(500)];
+                                        case 6:
+                                            _a.sent();
+                                            return [3 /*break*/, 7];
+                                        case 7: return [3 /*break*/, 2];
+                                        case 8:
                                             if (!success && !cancelToken.isCancelled()) {
                                                 throw new Error(error);
                                             }
-                                            _a.label = 8;
-                                        case 8: return [2 /*return*/];
+                                            _a.label = 9;
+                                        case 9: return [2 /*return*/];
                                     }
                                 });
                             }); })];
@@ -673,12 +670,12 @@ var IonicDeployImpl = /** @class */ (function () {
             });
         });
     };
-    IonicDeployImpl.prototype._wait = function (ms) {
-        var start = new Date().getTime();
-        var end = start;
-        while (end < start + ms) {
-            end = new Date().getTime();
-        }
+    IonicDeployImpl.prototype._delay = function (timeInMs) {
+        return new Promise((function (resolve) {
+            setTimeout(function () {
+                resolve();
+            }, timeInMs);
+        }));
     };
     IonicDeployImpl.prototype._fetchManifestWithRetry = function (url, noRetries) {
         return __awaiter(this, void 0, void 0, function () {

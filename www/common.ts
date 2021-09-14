@@ -496,16 +496,11 @@ class IonicDeployImpl {
             await downloadFile(entry);
             success = true;
           } catch (err) {
+            i++;
             error = `${err}`;
-            if (error.indexOf('to be offline') >= 0) {
-              i = maxTries;
-            } else {
-              i++;
               
-
-              console.log(`Deploy => ${i} File download error ${entry.href} with error: ${err}`);
-              this._wait(1000);
-            }
+            console.log(`Deploy => ${i} File download error ${entry.href} with error: ${err}`);
+            await this._delay(500);
           }
         }
 
@@ -540,12 +535,12 @@ class IonicDeployImpl {
     return Promise.all(ret);
   }
 
-  private  _wait(ms: number) {
-    const start = new Date().getTime();
-    let end = start;
-    while (end < start + ms) {
-      end = new Date().getTime();
-   }
+  private  _delay(timeInMs: number): Promise<void> {
+    return new Promise((resolve => {
+      setTimeout(() => {
+        resolve();
+      }, timeInMs);
+    }));
  }
 
   private async _fetchManifestWithRetry(url: string, noRetries: number): Promise<FetchManifestResp> {
