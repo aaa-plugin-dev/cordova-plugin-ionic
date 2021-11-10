@@ -17,7 +17,10 @@
 
     self.revertToBase = true;
     self.baseIndexPath = [[NSBundle mainBundle] pathForResource:@"www" ofType: nil];
-
+    if (self.baseIndexPath == nil) {
+        self.baseIndexPath = [[NSBundle mainBundle] pathForResource:@"public" ofType: nil];
+    }
+    
     if ([prefs stringForKey:@"uuid"] == nil) {
         [prefs setObject:[[NSUUID UUID] UUIDString] forKey:@"uuid"];
     }
