@@ -513,6 +513,11 @@ public class IonicCordovaCommon extends CordovaPlugin {
     webViewPrefsEdit.remove("serverBasePath");
     webViewPrefsEdit.apply();
 
+    SharedPreferences capWebViewPrefs = cordova.getContext().getSharedPreferences("CapWebViewSettings", Activity.MODE_PRIVATE);
+    SharedPreferences.Editor capWebViewPrefsEdit = capWebViewPrefs.edit();
+    capWebViewPrefsEdit.remove("serverBasePath");
+    capWebViewPrefsEdit.apply();    
+
     PluginResult result = new PluginResult(PluginResult.Status.OK);
     result.setKeepCallback(false);
     callbackContext.sendPluginResult(result);

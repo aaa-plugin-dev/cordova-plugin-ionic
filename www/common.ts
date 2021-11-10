@@ -74,7 +74,7 @@ class IonicDeployImpl {
   private _fileManager: FileManager = new FileManager();
   private SNAPSHOT_CACHE = 'ionic_built_snapshots';
   private MANIFEST_FILE = 'pro-manifest.json';
-  public PLUGIN_VERSION = '5.4.7';
+  public PLUGIN_VERSION = '5.5.1';
 
   private coreIonic5Files = [
     /^runtime\.(\w)*\.js/,

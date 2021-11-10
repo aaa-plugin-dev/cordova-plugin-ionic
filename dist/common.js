@@ -84,7 +84,7 @@ var IonicDeployImpl = /** @class */ (function () {
         this._fileManager = new FileManager();
         this.SNAPSHOT_CACHE = 'ionic_built_snapshots';
         this.MANIFEST_FILE = 'pro-manifest.json';
-        this.PLUGIN_VERSION = '5.4.7';
+        this.PLUGIN_VERSION = '5.5.1';
         this.coreIonic5Files = [
             /^runtime\.(\w)*\.js/,
             /^polyfills-(\w)*\.(\w)*\.js/,
