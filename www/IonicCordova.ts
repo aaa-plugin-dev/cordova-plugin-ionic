@@ -342,6 +342,11 @@ export interface ISnapshotInfo {
    * The versionCode on Android or CFBundleVersion on iOS this should be changed every time you do a new build debug or otherwise.
    */
   binaryVersionCode: string;
+
+  /**
+   * The appId for the info inside of this snaphot info.
+   */
+  appId: string;  
 }
 
 /**

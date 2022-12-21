@@ -10,6 +10,7 @@ export interface IAvailableUpdate {
   versionId: string;
   buildId: string;
   ionicVersion?: string;
+  appId: string;
 }
 
 export interface ISavedPreferences extends ICurrentConfig {

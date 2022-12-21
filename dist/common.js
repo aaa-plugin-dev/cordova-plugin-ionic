@@ -438,6 +438,7 @@ var IonicDeployImpl = /** @class */ (function () {
                             versionId: checkDeviceResp.snapshot,
                             buildId: checkDeviceResp.build || '?',
                             ionicVersion: '',
+                            appId: prefs.appId,
                         };
                         return [4 /*yield*/, this._savePrefs(prefs)];
                     case 4:
@@ -1150,7 +1151,8 @@ var IonicDeployImpl = /** @class */ (function () {
             binary_version: update.binaryVersionName,
             binaryVersion: update.binaryVersionName,
             binaryVersionCode: update.binaryVersionCode,
-            binaryVersionName: update.binaryVersionName
+            binaryVersionName: update.binaryVersionName,
+            appId: update.appId
         };
     };
     IonicDeployImpl.prototype.getSnapshotManifest = function (versionId) {
@@ -1330,7 +1332,8 @@ var IonicDeployImpl = /** @class */ (function () {
                                     binary_version: prefs.binaryVersionName,
                                     binaryVersion: prefs.binaryVersionName,
                                     binaryVersionCode: prefs.binaryVersionCode,
-                                    binaryVersionName: prefs.binaryVersionName
+                                    binaryVersionName: prefs.binaryVersionName,
+                                    appId: prefs.appId
                                 }];
                         }
                         return [2 /*return*/];
