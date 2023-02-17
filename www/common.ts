@@ -76,95 +76,9 @@ class IonicDeployImpl {
   private MANIFEST_FILE = 'pro-manifest.json';
   public PLUGIN_VERSION = '5.5.1';
 
-  private coreIonic5Files = [
-    /^runtime\.(\w)*\.js/,
-    /^polyfills-(\w)*\.(\w)*\.js/,
-    /^polyfills\.(\w)*\.js/,
-    /^cordova\.(\w)*\.js/,
-    /^main\.(\w)*\.js/,
-  ];
-
-  private coreIonic3Files = [
-    /build\/main\.((\w)*\.){0,1}js/,
-    /build\/vendor.((\w)*\.){0,1}js/,
-    /build\/polyfills\.js/,
-  ];
-
-  private integrityCheckTimeout: any;
-
   constructor(appInfo: IAppInfo, preferences: ISavedPreferences) {
     this.appInfo = appInfo;
     this._savedPreferences = preferences;
-  }
-
-  isCoreFile(file: ManifestFileEntry): boolean {
-    return this.coreIonic5Files.some((coreFile) => {
-      const regxp = new RegExp(coreFile);
-      if (regxp.test(file.href)) {
-        return true;
-      }
-
-      return false;
-    });
-  }
-
-  async checkCoreIntegrity(): Promise<boolean> {
-    if (this._savedPreferences.currentVersionId) {
-      try {
-        const manifest = await this.getSnapshotManifest(this._savedPreferences.currentVersionId);
-
-        if (!manifest || manifest.length === 0) {
-          console.log('Deploy => checkCoreIntegrity false because no manifest file');
-          return false;
-        }
-
-        let integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic5Files);
-        if (integrityChecks.length === 0) {
-          console.log('Deploy => Ionic app is Ionic 3 app get this files');
-          integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic3Files);
-        }
-
-        if (integrityChecks.length === 0) {
-          console.log('Deploy => No core files to check, weired...');
-          return true;
-        }
-
-        await Promise.all(integrityChecks.map(async file => this.checkFileIntegrity(file, <string>this._savedPreferences.currentVersionId)));
-      } catch (error) {
-        console.log(`Deploy => Core File Check Error: ${error}`);
-        this.sendEvent('onIntegrityCheckFailed', {
-          type: 'coreIntegrity'
-        });
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  private filterIonicCoreFies(manifest: ManifestFileEntry[], coreFiles: RegExp[]): ManifestFileEntry[] {
-    const integrityChecks: ManifestFileEntry[] = [];
-    manifest.some((file) => {
-      if (integrityChecks.length >= coreFiles.length) {
-        return true;
-      }
-      coreFiles.some((coreFile) => {
-        if (integrityChecks.length >= coreFiles.length) {
-          return true;
-        }
-    
-        const regxp = new RegExp(coreFile);
-        if (regxp.test(file.href)) {
-          integrityChecks.push(file);
-        }
-
-        return false;
-      });
-
-      return false;
-    });
-
-    return integrityChecks;
   }
 
   async checkFileIntegrity(file: ManifestFileEntry, versionId: string): Promise<any> {
@@ -194,33 +108,9 @@ class IonicDeployImpl {
     }
 
     return fileSizesMatch;
-
-    // We do not use the result of this check hence it is better not to execute this step
-    // --
-    // if (fileSizesMatch && this.isCoreFile(file)) {
-    //   const fullPath = Path.join(this.getSnapshotCacheDirPath(versionId), file.href);
-    //   const contents = await this._fileManager.getFile(fullPath);
-    //   const expectedHash = file.integrity.split(' ')[0] || '';
-    //   const contentsWords = CryptoJS.enc.Utf8.parse(contents);
-    //   const contentsHash = CryptoJS.SHA256(contentsWords);
-    //   const base64 = CryptoJS.enc.Base64.stringify(contentsHash);
-    //   const formattedHash = `sha256-${base64}`;
-    //   const hashesMatch = formattedHash === expectedHash;
-
-    //   if (!hashesMatch) {
-    //     console.log('Deploy => Core file integrity hash does not match.', file, contents, contentsHash);
-    //   }
-    // }
-  }
+  }   
 
   async _handleInitialPreferenceState() {    
-    const isSnapshotGood = await this.checkCoreIntegrity();
-    console.log(`Deploy => Snapshop folder is: ${isSnapshotGood}`)
-    if (!isSnapshotGood) {
-      this.sendEvent('onCoreFileIntegrityCheckFailed', {});
-      await this.resetToBundle();
-      return;
-    }
 
     const isOnline = navigator && navigator.onLine;
     if (!isOnline) {
@@ -311,15 +201,13 @@ class IonicDeployImpl {
         cordova.exec(async (savedPrefs: ISavedPreferences) => {
           resolve(savedPrefs);
           }, reject, 'IonicCordovaCommon', 'setPreferences', [prefs]);
-      } catch (e) {
+      } catch (e: any) {
         reject(e.message);
       }
     });
   }
 
   async configure(config: IDeployConfig) {
-    clearTimeout(this.integrityCheckTimeout);
-
     if (!isPluginConfig(config)) {
       throw new Error('Invalid Config Object');
     }
@@ -1173,7 +1061,7 @@ class IonicDeploy implements IDeployPluginAPI {
             }, reject, 'IonicCordovaCommon', 'getPreferences');
           }, 0);
         });
-      } catch (e) {
+      } catch (e: any) {
         channel.onIonicProReady.fire();
         reject(e.message);
       }
@@ -1204,7 +1092,7 @@ class IonicDeploy implements IDeployPluginAPI {
             console.log(`Deploy => prefs: ${JSON.stringify(prefs)}`);
             resolve(prefs);
           }, reject, 'IonicCordovaCommon', 'getPreferences');
-      } catch (e) {
+      } catch (e: any) {
         reject(e.message);
       }
     });

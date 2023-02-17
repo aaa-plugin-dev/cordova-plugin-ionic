@@ -85,95 +85,9 @@ var IonicDeployImpl = /** @class */ (function () {
         this.SNAPSHOT_CACHE = 'ionic_built_snapshots';
         this.MANIFEST_FILE = 'pro-manifest.json';
         this.PLUGIN_VERSION = '5.5.1';
-        this.coreIonic5Files = [
-            /^runtime\.(\w)*\.js/,
-            /^polyfills-(\w)*\.(\w)*\.js/,
-            /^polyfills\.(\w)*\.js/,
-            /^cordova\.(\w)*\.js/,
-            /^main\.(\w)*\.js/,
-        ];
-        this.coreIonic3Files = [
-            /build\/main\.((\w)*\.){0,1}js/,
-            /build\/vendor.((\w)*\.){0,1}js/,
-            /build\/polyfills\.js/,
-        ];
         this.appInfo = appInfo;
         this._savedPreferences = preferences;
     }
-    IonicDeployImpl.prototype.isCoreFile = function (file) {
-        return this.coreIonic5Files.some(function (coreFile) {
-            var regxp = new RegExp(coreFile);
-            if (regxp.test(file.href)) {
-                return true;
-            }
-            return false;
-        });
-    };
-    IonicDeployImpl.prototype.checkCoreIntegrity = function () {
-        return __awaiter(this, void 0, void 0, function () {
-            var manifest, integrityChecks, error_1;
-            var _this = this;
-            return __generator(this, function (_a) {
-                switch (_a.label) {
-                    case 0:
-                        if (!this._savedPreferences.currentVersionId) return [3 /*break*/, 5];
-                        _a.label = 1;
-                    case 1:
-                        _a.trys.push([1, 4, , 5]);
-                        return [4 /*yield*/, this.getSnapshotManifest(this._savedPreferences.currentVersionId)];
-                    case 2:
-                        manifest = _a.sent();
-                        if (!manifest || manifest.length === 0) {
-                            console.log('Deploy => checkCoreIntegrity false because no manifest file');
-                            return [2 /*return*/, false];
-                        }
-                        integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic5Files);
-                        if (integrityChecks.length === 0) {
-                            console.log('Deploy => Ionic app is Ionic 3 app get this files');
-                            integrityChecks = this.filterIonicCoreFies(manifest, this.coreIonic3Files);
-                        }
-                        if (integrityChecks.length === 0) {
-                            console.log('Deploy => No core files to check, weired...');
-                            return [2 /*return*/, true];
-                        }
-                        return [4 /*yield*/, Promise.all(integrityChecks.map(function (file) { return __awaiter(_this, void 0, void 0, function () { return __generator(this, function (_a) {
-                                return [2 /*return*/, this.checkFileIntegrity(file, this._savedPreferences.currentVersionId)];
-                            }); }); }))];
-                    case 3:
-                        _a.sent();
-                        return [3 /*break*/, 5];
-                    case 4:
-                        error_1 = _a.sent();
-                        console.log("Deploy => Core File Check Error: " + error_1);
-                        this.sendEvent('onIntegrityCheckFailed', {
-                            type: 'coreIntegrity'
-                        });
-                        return [2 /*return*/, false];
-                    case 5: return [2 /*return*/, true];
-                }
-            });
-        });
-    };
-    IonicDeployImpl.prototype.filterIonicCoreFies = function (manifest, coreFiles) {
-        var integrityChecks = [];
-        manifest.some(function (file) {
-            if (integrityChecks.length >= coreFiles.length) {
-                return true;
-            }
-            coreFiles.some(function (coreFile) {
-                if (integrityChecks.length >= coreFiles.length) {
-                    return true;
-                }
-                var regxp = new RegExp(coreFile);
-                if (regxp.test(file.href)) {
-                    integrityChecks.push(file);
-                }
-                return false;
-            });
-            return false;
-        });
-        return integrityChecks;
-    };
     IonicDeployImpl.prototype.checkFileIntegrity = function (file, versionId) {
         return __awaiter(this, void 0, void 0, function () {
             var fileSize, fileSizesMatch;
@@ -212,20 +126,10 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._handleInitialPreferenceState = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var isSnapshotGood, isOnline, updateMethod, _a, cancelToken, e_1, cancelToken, e_2;
+            var isOnline, updateMethod, _a, cancelToken, e_1, cancelToken, e_2;
             return __generator(this, function (_b) {
                 switch (_b.label) {
-                    case 0: return [4 /*yield*/, this.checkCoreIntegrity()];
-                    case 1:
-                        isSnapshotGood = _b.sent();
-                        console.log("Deploy => Snapshop folder is: " + isSnapshotGood);
-                        if (!!isSnapshotGood) return [3 /*break*/, 3];
-                        this.sendEvent('onCoreFileIntegrityCheckFailed', {});
-                        return [4 /*yield*/, this.resetToBundle()];
-                    case 2:
-                        _b.sent();
-                        return [2 /*return*/];
-                    case 3:
+                    case 0:
                         isOnline = navigator && navigator.onLine;
                         if (!isOnline) {
                             console.warn('Deploy => The device appears to be offline. Loading last available version and skipping update checks.');
@@ -235,60 +139,60 @@ var IonicDeployImpl = /** @class */ (function () {
                         updateMethod = this._savedPreferences.updateMethod;
                         _a = updateMethod;
                         switch (_a) {
-                            case UpdateMethod.AUTO: return [3 /*break*/, 4];
-                            case UpdateMethod.NONE: return [3 /*break*/, 10];
+                            case UpdateMethod.AUTO: return [3 /*break*/, 1];
+                            case UpdateMethod.NONE: return [3 /*break*/, 7];
                         }
-                        return [3 /*break*/, 12];
-                    case 4:
+                        return [3 /*break*/, 9];
+                    case 1:
                         // NOTE: call sync with background as override to avoid sync
                         // reloading the app and manually reload always once sync has
                         // set the correct currentVersionId
                         console.log('Deploy => calling _sync');
-                        _b.label = 5;
-                    case 5:
-                        _b.trys.push([5, 7, , 8]);
+                        _b.label = 2;
+                    case 2:
+                        _b.trys.push([2, 4, , 5]);
                         cancelToken = new tokens_1.CancelToken();
                         return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken)];
-                    case 6:
+                    case 3:
                         _b.sent();
-                        return [3 /*break*/, 8];
-                    case 7:
+                        return [3 /*break*/, 5];
+                    case 4:
                         e_1 = _b.sent();
                         console.warn("Deploy => " + e_1);
                         console.warn('Deploy => Sync failed. Defaulting to last available version.');
-                        return [3 /*break*/, 8];
-                    case 8:
+                        return [3 /*break*/, 5];
+                    case 5:
                         console.log('Deploy => calling _reload');
                         return [4 /*yield*/, this.reloadApp()];
-                    case 9:
+                    case 6:
                         _b.sent();
                         console.log('Deploy => done _reloading');
-                        return [3 /*break*/, 18];
-                    case 10: return [4 /*yield*/, this.reloadApp()];
-                    case 11:
+                        return [3 /*break*/, 15];
+                    case 7: return [4 /*yield*/, this.reloadApp()];
+                    case 8:
                         _b.sent();
-                        return [3 /*break*/, 18];
-                    case 12: 
+                        return [3 /*break*/, 15];
+                    case 9: 
                     // NOTE: default anything that doesn't explicitly match to background updates
                     return [4 /*yield*/, this.reloadApp()];
-                    case 13:
+                    case 10:
                         // NOTE: default anything that doesn't explicitly match to background updates
                         _b.sent();
-                        _b.label = 14;
-                    case 14:
-                        _b.trys.push([14, 16, , 17]);
+                        _b.label = 11;
+                    case 11:
+                        _b.trys.push([11, 13, , 14]);
                         cancelToken = new tokens_1.CancelToken();
                         return [4 /*yield*/, this.sync({ updateMethod: UpdateMethod.BACKGROUND }, cancelToken)];
-                    case 15:
+                    case 12:
                         _b.sent();
-                        return [3 /*break*/, 17];
-                    case 16:
+                        return [3 /*break*/, 14];
+                    case 13:
                         e_2 = _b.sent();
                         console.warn("Deploy => " + e_2);
                         console.warn('Deploy => Background sync failed. Unable to check for new updates.');
-                        return [3 /*break*/, 17];
-                    case 17: return [2 /*return*/];
-                    case 18: return [2 /*return*/];
+                        return [3 /*break*/, 14];
+                    case 14: return [2 /*return*/];
+                    case 15: return [2 /*return*/];
                 }
             });
         });
@@ -360,7 +264,6 @@ var IonicDeployImpl = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        clearTimeout(this.integrityCheckTimeout);
                         if (!guards_1.isPluginConfig(config)) {
                             throw new Error('Invalid Config Object');
                         }
@@ -462,7 +365,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.downloadUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_1, fullPath, ionicVersion, error_2;
+            var prefs, _a, fileBaseUrl, manifestJson, diffedManifest, err_1, fullPath, ionicVersion, error_1;
             return __generator(this, function (_b) {
                 switch (_b.label) {
                     case 0:
@@ -506,9 +409,9 @@ var IonicDeployImpl = /** @class */ (function () {
                         prefs.availableUpdate.ionicVersion = ionicVersion;
                         return [3 /*break*/, 11];
                     case 10:
-                        error_2 = _b.sent();
+                        error_1 = _b.sent();
                         delete prefs.availableUpdate.ionicVersion;
-                        console.log("Deploy => Get ionic version error: " + error_2);
+                        console.log("Deploy => Get ionic version error: " + error_1);
                         return [3 /*break*/, 11];
                     case 11:
                         prefs.availableUpdate.state = UpdateState.Pending;
@@ -680,7 +583,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype._fetchManifestWithRetry = function (url, noRetries) {
         return __awaiter(this, void 0, void 0, function () {
-            var error_3;
+            var error_2;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -693,10 +596,10 @@ var IonicDeployImpl = /** @class */ (function () {
                         return [4 /*yield*/, this._fetchManifest(url)];
                     case 2: return [2 /*return*/, _a.sent()];
                     case 3:
-                        error_3 = _a.sent();
+                        error_2 = _a.sent();
                         if (noRetries === 1) {
-                            console.log("Deploy: Fetch manifest has an error: " + error_3);
-                            throw error_3;
+                            console.log("Deploy: Fetch manifest has an error: " + error_2);
+                            throw error_2;
                         }
                         return [4 /*yield*/, this._fetchManifestWithRetry(url, noRetries - 1)];
                     case 4: return [2 /*return*/, _a.sent()];
@@ -969,7 +872,7 @@ var IonicDeployImpl = /** @class */ (function () {
     };
     IonicDeployImpl.prototype.cleanAcgOrMwgDownload = function () {
         return __awaiter(this, void 0, void 0, function () {
-            var prefs, snapshotDirectory, bundledAppDir, error_4;
+            var prefs, snapshotDirectory, bundledAppDir, error_3;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
@@ -1026,8 +929,8 @@ var IonicDeployImpl = /** @class */ (function () {
                         this._savePrefs(prefs);
                         return [3 /*break*/, 10];
                     case 9:
-                        error_4 = _a.sent();
-                        console.log("Deploy => Ionic cordova files error: " + error_4);
+                        error_3 = _a.sent();
+                        console.log("Deploy => Ionic cordova files error: " + error_3);
                         return [3 /*break*/, 10];
                     case 10:
                         console.log('Deploy => Ionic: cordova file update done...');
