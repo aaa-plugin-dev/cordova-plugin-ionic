@@ -292,7 +292,7 @@ class IonicDeployImpl {
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
     const prefs = this._savedPreferences;
     if (prefs.availableUpdate && prefs.availableUpdate.state === UpdateState.Available) {
-
+      
       console.log('Deploy => Fetch manifest file from ionic');
       const { fileBaseUrl, manifestJson } = await this._fetchManifestWithRetry(prefs.availableUpdate.url, 2);
 
@@ -1000,6 +1000,7 @@ class IonicDeploy implements IDeployPluginAPI {
   private lastPause = 0;
   private minBackgroundDuration = 30;
   private disabled = false;
+  private alreadyDownloading = false;
   public supportsPartialNativeUpdates = true;
 
   constructor(parent: IPluginBaseAPI) {
@@ -1069,7 +1070,7 @@ class IonicDeploy implements IDeployPluginAPI {
   }
 
   async checkForUpdate(): Promise<CheckForUpdateResponse> {
-    if (!this.disabled) {
+    if (!this.disabled && !this.alreadyDownloading) {
       return (await this.delegate).checkForUpdate();
     }
     return  {available: false, compatible: false, partial: false};
@@ -1104,7 +1105,13 @@ class IonicDeploy implements IDeployPluginAPI {
   }
 
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
-    if (!this.disabled) return (await this.delegate).downloadUpdate(cancelToken, progress);
+    if (!this.disabled && !this.alreadyDownloading) {
+      this.alreadyDownloading = true;
+      const response = (await this.delegate).downloadUpdate(cancelToken, progress);
+      this.alreadyDownloading = false;
+      return response;
+    }
+
     return false;
   }
 

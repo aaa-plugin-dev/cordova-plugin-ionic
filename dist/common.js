@@ -1433,6 +1433,7 @@ var IonicDeploy = /** @class */ (function () {
         this.lastPause = 0;
         this.minBackgroundDuration = 30;
         this.disabled = false;
+        this.alreadyDownloading = false;
         this.supportsPartialNativeUpdates = true;
         this.parent = parent;
         this.delegate = this.initialize();
@@ -1552,7 +1553,7 @@ var IonicDeploy = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!!this.disabled) return [3 /*break*/, 2];
+                        if (!(!this.disabled && !this.alreadyDownloading)) return [3 /*break*/, 2];
                         return [4 /*yield*/, this.delegate];
                     case 1: return [2 /*return*/, (_a.sent()).checkForUpdate()];
                     case 2: return [2 /*return*/, { available: false, compatible: false, partial: false }];
@@ -1619,12 +1620,17 @@ var IonicDeploy = /** @class */ (function () {
     };
     IonicDeploy.prototype.downloadUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
+            var response;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
-                        if (!!this.disabled) return [3 /*break*/, 2];
+                        if (!(!this.disabled && !this.alreadyDownloading)) return [3 /*break*/, 2];
+                        this.alreadyDownloading = true;
                         return [4 /*yield*/, this.delegate];
-                    case 1: return [2 /*return*/, (_a.sent()).downloadUpdate(cancelToken, progress)];
+                    case 1:
+                        response = (_a.sent()).downloadUpdate(cancelToken, progress);
+                        this.alreadyDownloading = false;
+                        return [2 /*return*/, response];
                     case 2: return [2 /*return*/, false];
                 }
             });
