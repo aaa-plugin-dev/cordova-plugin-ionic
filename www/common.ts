@@ -1017,6 +1017,7 @@ class IonicDeploy implements IDeployPluginAPI {
     }
     this.minBackgroundDuration = preferences.minBackgroundDuration;
     this.disabled = preferences.disabled || !this.fetchIsAvailable;
+    this.alreadyDownloading = false;
     const appInfo = await this.parent.getAppDetails();
     const delegate = new IonicDeployImpl(appInfo, preferences);
     // Only initialize start the plugin if fetch is available and DisableDeploy preference is false
@@ -1109,6 +1110,7 @@ class IonicDeploy implements IDeployPluginAPI {
   }
 
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
+    // this.alreadyDownloading is resetting to false after download during a reload of the app
     console.log(`Deploy => downloadUpdate: disabled=${this.disabled}; alreadyDownloading=${this.alreadyDownloading}`)
     if (!this.disabled && !this.alreadyDownloading) {
       console.log(`Deploy => downloadUpdate get new version`);
