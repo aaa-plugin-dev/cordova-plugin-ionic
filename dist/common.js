@@ -1553,10 +1553,14 @@ var IonicDeploy = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        console.log("Deploy => checkForUpdate: disabled=" + this.disabled + "; alreadyDownloading=" + this.alreadyDownloading);
                         if (!(!this.disabled && !this.alreadyDownloading)) return [3 /*break*/, 2];
+                        console.log("Deploy => checkForUpdate is checking for new version");
                         return [4 /*yield*/, this.delegate];
                     case 1: return [2 /*return*/, (_a.sent()).checkForUpdate()];
-                    case 2: return [2 /*return*/, { available: false, compatible: false, partial: false }];
+                    case 2:
+                        console.log("Deploy => checkForUpdate check not needed or wanted");
+                        return [2 /*return*/, { available: false, compatible: false, partial: false }];
                 }
             });
         });
@@ -1620,18 +1624,18 @@ var IonicDeploy = /** @class */ (function () {
     };
     IonicDeploy.prototype.downloadUpdate = function (cancelToken, progress) {
         return __awaiter(this, void 0, void 0, function () {
-            var response;
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        console.log("Deploy => downloadUpdate: disabled=" + this.disabled + "; alreadyDownloading=" + this.alreadyDownloading);
                         if (!(!this.disabled && !this.alreadyDownloading)) return [3 /*break*/, 2];
+                        console.log("Deploy => downloadUpdate get new version");
                         this.alreadyDownloading = true;
                         return [4 /*yield*/, this.delegate];
-                    case 1:
-                        response = (_a.sent()).downloadUpdate(cancelToken, progress);
-                        this.alreadyDownloading = false;
-                        return [2 /*return*/, response];
-                    case 2: return [2 /*return*/, false];
+                    case 1: return [2 /*return*/, (_a.sent()).downloadUpdate(cancelToken, progress)];
+                    case 2:
+                        console.log("Deploy => downloadUpdate not needed or wanted");
+                        return [2 /*return*/, false];
                 }
             });
         });

@@ -1070,9 +1070,13 @@ class IonicDeploy implements IDeployPluginAPI {
   }
 
   async checkForUpdate(): Promise<CheckForUpdateResponse> {
+    console.log(`Deploy => checkForUpdate: disabled=${this.disabled}; alreadyDownloading=${this.alreadyDownloading}`)
     if (!this.disabled && !this.alreadyDownloading) {
+      console.log(`Deploy => checkForUpdate is checking for new version`)
       return (await this.delegate).checkForUpdate();
     }
+
+    console.log(`Deploy => checkForUpdate check not needed or wanted`)
     return  {available: false, compatible: false, partial: false};
   }
 
@@ -1105,13 +1109,14 @@ class IonicDeploy implements IDeployPluginAPI {
   }
 
   async downloadUpdate(cancelToken: CancelToken, progress?: CallbackFunction<number>): Promise<boolean> {
+    console.log(`Deploy => downloadUpdate: disabled=${this.disabled}; alreadyDownloading=${this.alreadyDownloading}`)
     if (!this.disabled && !this.alreadyDownloading) {
+      console.log(`Deploy => downloadUpdate get new version`);
       this.alreadyDownloading = true;
-      const response = (await this.delegate).downloadUpdate(cancelToken, progress);
-      this.alreadyDownloading = false;
-      return response;
+      return (await this.delegate).downloadUpdate(cancelToken, progress);
     }
 
+    console.log(`Deploy => downloadUpdate not needed or wanted`);
     return false;
   }
 
