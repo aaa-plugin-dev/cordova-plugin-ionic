@@ -158,7 +158,7 @@
     [controller addAction:buttonTryAgain];
 
     UIAlertAction *buttonCallAAA = [UIAlertAction actionWithTitle:@"Call AAA" style:UIAlertActionStyleDefault handler:^(UIAlertAction * _Nonnull action) {
-        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"tel://800-222-4357"]];
+        [[UIApplication sharedApplication] openURL:[NSURL URLWithString:@"tel://1800-222-4357"]];
 
         CDVPluginResult* pluginResult = [CDVPluginResult resultWithStatus:CDVCommandStatus_OK messageAsString:@"CallAAA"];
         [self.commandDelegate sendPluginResult:pluginResult callbackId:command.callbackId];
