@@ -579,7 +579,7 @@ class IonicDeployImpl {
 
   async forceReloadApp(): Promise<boolean> {
     try {
-      window.location.reload();
+      window.location.href = `${window.location.protocol}//${window.location.host}/`
     } catch (error) {
       console.error(`Deploy => Force reload failed: ${error}`);
     }

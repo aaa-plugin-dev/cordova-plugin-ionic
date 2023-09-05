@@ -790,7 +790,7 @@ var IonicDeployImpl = /** @class */ (function () {
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 try {
-                    window.location.reload();
+                    window.location.href = window.location.protocol + "//" + window.location.host + "/";
                 }
                 catch (error) {
                     console.error("Deploy => Force reload failed: " + error);
@@ -1453,6 +1453,7 @@ var IonicDeploy = /** @class */ (function () {
                         }
                         this.minBackgroundDuration = preferences.minBackgroundDuration;
                         this.disabled = preferences.disabled || !this.fetchIsAvailable;
+                        this.alreadyDownloading = false;
                         return [4 /*yield*/, this.parent.getAppDetails()];
                     case 2:
                         appInfo = _a.sent();
@@ -1627,6 +1628,7 @@ var IonicDeploy = /** @class */ (function () {
             return __generator(this, function (_a) {
                 switch (_a.label) {
                     case 0:
+                        // this.alreadyDownloading is resetting to false after download during a reload of the app
                         console.log("Deploy => downloadUpdate: disabled=" + this.disabled + "; alreadyDownloading=" + this.alreadyDownloading);
                         if (!(!this.disabled && !this.alreadyDownloading)) return [3 /*break*/, 2];
                         console.log("Deploy => downloadUpdate get new version");
