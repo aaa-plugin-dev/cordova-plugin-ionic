@@ -37,32 +37,45 @@
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: @"Only Application directory is supported"]  callbackId:command.callbackId];
         return;
     }
-
-    [[NSFileManager defaultManager] removeItemAtPath:toFile error:nil];
     
-    NSMutableString *source = [NSMutableString stringWithString:[[NSBundle mainBundle] resourcePath]];
-    [source appendString:@"/"];
-    [source appendString:fromFile];
-
-    NSError *copyError = nil;
-    if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:toFile error:&copyError]) {
-        NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
-        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
-        return;
-    }
-    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        [[NSFileManager defaultManager] removeItemAtPath:toFile error:nil];
+        
+        NSMutableString *source = [NSMutableString stringWithString:[[NSBundle mainBundle] resourcePath]];
+        [source appendString:@"/"];
+        [source appendString:fromFile];
+        
+        NSError *copyError = nil;
+        if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:toFile error:&copyError]) {
+            NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
+            });
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+            });
+        }
+    });
 }
 
 - (void) remove:(CDVInvokedUrlCommand*)command {
     NSDictionary *options = command.arguments[0];
     NSString *path = options[@"target"];
     NSLog(@"Deploy => Native -> Got remove path: %@", path);
-    NSError *removeError = nil;
-    if (![[NSFileManager defaultManager] removeItemAtPath:path error:&removeError]) {
-        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [removeError localizedDescription]]  callbackId:command.callbackId];
-        return;
-    }
-    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSError *removeError = nil;
+        if (![[NSFileManager defaultManager] removeItemAtPath:path error:&removeError]) {
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [removeError localizedDescription]]  callbackId:command.callbackId];
+            });
+        } else {
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+            });
+        }
+    });
 }
 
 - (void) copyTo:(CDVInvokedUrlCommand*)command {
@@ -76,22 +89,31 @@
         [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: @"Only Application directory is supported"]  callbackId:command.callbackId];
         return;
     }
-    NSMutableString *source = [NSMutableString stringWithString:[[NSBundle mainBundle] resourcePath]];
-    [source appendString:@"/"];
-    [source appendString:srcPath];
-    NSError *createDirError = nil;
-    if (![[NSFileManager defaultManager] createDirectoryAtPath:dest withIntermediateDirectories:YES attributes:nil error:&createDirError]) {
-        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [createDirError localizedDescription]]  callbackId:command.callbackId];
-        return;
-    }
-    [[NSFileManager defaultManager] removeItemAtPath:dest error:nil];
-    NSError *copyError = nil;
-    if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:dest error:&copyError]) {
-        NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
-        [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
-        return;
-    }
-    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSMutableString *source = [NSMutableString stringWithString:[[NSBundle mainBundle] resourcePath]];
+        [source appendString:@"/"];
+        [source appendString:srcPath];
+        NSError *createDirError = nil;
+        if (![[NSFileManager defaultManager] createDirectoryAtPath:dest withIntermediateDirectories:YES attributes:nil error:&createDirError]) {
+            dispatch_async(dispatch_get_main_queue(), ^(void) {
+                [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [createDirError localizedDescription]]  callbackId:command.callbackId];
+            });
+        } else {
+            [[NSFileManager defaultManager] removeItemAtPath:dest error:nil];
+            NSError *copyError = nil;
+            if (![[NSFileManager defaultManager] copyItemAtPath:source toPath:dest error:&copyError]) {
+                NSLog(@"Deploy => Native -> Error copying files: %@", [copyError localizedDescription]);
+                
+                dispatch_async(dispatch_get_main_queue(), ^(void) {
+                    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_ERROR messageAsString: [copyError localizedDescription]]  callbackId:command.callbackId];
+                });
+            } else {
+                dispatch_async(dispatch_get_main_queue(), ^(void) {
+                    [self.commandDelegate sendPluginResult:[CDVPluginResult resultWithStatus:CDVCommandStatus_OK] callbackId:command.callbackId];
+                });
+            }
+        }
+    });
 }
 
 - (void) downloadFile:(CDVInvokedUrlCommand*)command {
