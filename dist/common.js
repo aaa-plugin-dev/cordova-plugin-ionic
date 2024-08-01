@@ -212,7 +212,6 @@ var IonicDeployImpl = /** @class */ (function () {
                         _a.sent();
                         if (this.appInfo.platform === 'ios') {
                             Ionic.WebView.setServerBasePath(prefs.bundlePath);
-                            Ionic.WebView.persistServerBasePath();
                         }
                         cordova.exec(function () {
                             console.log('Deploy => App resetToBundle success');

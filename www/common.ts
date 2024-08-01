@@ -163,7 +163,6 @@ class IonicDeployImpl {
 
     if (this.appInfo.platform === 'ios') {
         Ionic.WebView.setServerBasePath(prefs.bundlePath);
-        Ionic.WebView.persistServerBasePath();
     }
 
     cordova.exec(

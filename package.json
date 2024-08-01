@@ -1,6 +1,6 @@
 {
   "name": "cordova-plugin-ionic",
-  "version": "5.5.1-8",
+  "version": "5.5.1-9",
   "cordova": {
     "id": "cordova-plugin-ionic",
     "platforms": [

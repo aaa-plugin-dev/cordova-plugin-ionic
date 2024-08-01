@@ -163,6 +163,20 @@
     
     // Reset WebView back to bundled
     [prefs removeObjectForKey:@"serverBasePath"];
+
+    // Manaully removing the KeyValueStore for serverBasePath
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES);
+    NSString *libPath = paths.firstObject;
+    if (libPath) {
+        NSError *error = nil;
+        NSString *fullPath = [libPath stringByAppendingPathComponent:@"kvstore/standard/serverBasePath"];
+        NSURL *url = [NSURL fileURLWithPath:fullPath];
+        if ([[NSFileManager defaultManager] removeItemAtURL:url error:&error]) {
+            NSLog(@"Deploy => Native -> successfully removed serverBasePath: %@", fullPath);
+        } else {
+            NSLog(@"Deploy => Native -> Failed to remove serverBasePath: %@", error.localizedDescription);
+        }
+    }
     
     [[NSUserDefaults standardUserDefaults] synchronize];
 
