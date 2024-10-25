@@ -1,4 +1,4 @@
-import { CallbackFunction, IAppInfo, IPluginBaseAPI } from './IonicCordova';
+import { CallbackFunction, IAppInfo, IPluginBaseAPI } from "./IonicCordova";
 /**
  * BASE API
  *
